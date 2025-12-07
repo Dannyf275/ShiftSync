@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="24dp"
+    tools:context=".RegisterActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="הרשמה למערכת"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:layout_gravity="center"
+            android:layout_marginBottom="32dp"/>
+
+        <EditText
+            android:id="@+id/etFullName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="שם מלא"
+            android:inputType="textPersonName"
+            android:layout_marginBottom="12dp"/>
+
+        <EditText
+            android:id="@+id/etIdNumber"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="תעודת זהות"
+            android:inputType="number"
+            android:maxLength="9"
+            android:layout_marginBottom="12dp"/>
+
+        <EditText
+            android:id="@+id/etEmail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="אימייל"
+            android:inputType="textEmailAddress"
+            android:layout_marginBottom="12dp"/>
+
+        <EditText
+            android:id="@+id/etPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="סיסמה (לפחות 6 תווים)"
+            android:inputType="textPassword"
+            android:layout_marginBottom="12dp"/>
+
+        <EditText
+            android:id="@+id/etConfirmPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="אמת סיסמה"
+            android:inputType="textPassword"
+            android:layout_marginBottom="12dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="בחר תפקיד:"
+            android:layout_marginTop="8dp"/>
+
+        <RadioGroup
+            android:id="@+id/rgRole"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="24dp">
+
+            <RadioButton
+                android:id="@+id/rbEmployee"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="עובד"
+                android:checked="true"/>
+
+            <RadioButton
+                android:id="@+id/rbManager"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="מנהל"
+                android:layout_marginStart="16dp"/>
+
+            <EditText
+                android:id="@+id/etManagerCode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="הזן קוד גישה למנהל"
+                android:inputType="numberPassword"
+                android:visibility="gone"
+                android:layout_marginBottom="12dp"/>
+        </RadioGroup>
+
+        <Button
+            android:id="@+id/btnRegister"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="הירשם"
+            android:textSize="18sp"/>
+
+        <ProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:visibility="gone"
+            android:layout_marginTop="16dp"/>
+
+        <TextView
+            android:id="@+id/tvBackToLogin"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="יש לך כבר חשבון? התחבר כאן"
+            android:textColor="#6200EE"
+            android:textSize="16sp"
+            android:layout_gravity="center"
+            android:layout_marginTop="16dp"
+            android:padding="8dp"/>
+
+    </LinearLayout>
+</ScrollView>
