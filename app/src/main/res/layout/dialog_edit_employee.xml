@@ -3,39 +3,72 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="24dp">
+    android:padding="24dp"
+    android:minWidth="320dp"
+    android:background="@android:drawable/dialog_holo_light_frame">
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="עריכת פרטי עובד"
-        android:textSize="20sp"
+        android:text="ניהול פרטי עובד"
+        android:textSize="22sp"
         android:textStyle="bold"
-        android:layout_marginBottom="16dp"/>
+        android:textColor="#6200EE"
+        android:layout_gravity="center"
+        android:layout_marginBottom="24dp"/>
 
-    <EditText
-        android:id="@+id/etEditName"
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="שם מלא"
-        android:inputType="textPersonName"
-        android:layout_marginBottom="12dp"/>
+        android:layout_marginBottom="12dp">
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/etEditName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textPersonName"/>
+    </com.google.android.material.textfield.TextInputLayout>
 
-    <EditText
-        android:id="@+id/etEditIdNumber"
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="תעודת זהות"
-        android:inputType="number"
-        android:maxLength="9"
-        android:layout_marginBottom="12dp"/>
+        android:layout_marginBottom="12dp">
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/etEditIdNumber"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="number"/>
+    </com.google.android.material.textfield.TextInputLayout>
 
-    <EditText
-        android:id="@+id/etEditHourlyRate"
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="שכר שעתי (₪)"
-        android:inputType="numberDecimal"
+        android:hint="שכר לשעה (₪)"
+        android:layout_marginBottom="32dp">
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/etEditHourlyRate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="numberDecimal"/>
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <Button
+        android:id="@+id/btnDeleteEmployee"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:text="🗑️  מחק עובד מהמערכת"
+        android:backgroundTint="#D32F2F"
+        android:textSize="16sp"
+        android:textStyle="bold"
         android:layout_marginBottom="12dp"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="* במקרה של שכחת סיסמה, יש למחוק את העובד וליצור אותו מחדש."
+        android:textColor="#757575"
+        android:textSize="12sp"
+        android:gravity="center"/>
 
 </LinearLayout>
