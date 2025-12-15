@@ -15,6 +15,7 @@ import com.example.shiftsync.databinding.ActivityEmployeesListBinding;
 import com.example.shiftsync.models.User;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration; // ייבוא חשוב לניהול המאזין
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,163 +23,157 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * מסך זה מציג למנהל את רשימת כל העובדים הרשומים במערכת.
- * הוא מאפשר למנהל לצפות בפרטים ולערוך נתונים כמו שכר ות"ז.
+ * מסך ניהול עובדים (עבור המנהל).
+ * מציג רשימה חיה של כל העובדים במערכת.
+ * מאפשר עריכת פרטים (שם, ת"ז, שכר).
  */
 public class EmployeesListActivity extends AppCompatActivity {
 
-    // משתנה לגישה לרכיבי ה-XML (ViewBinding)
     private ActivityEmployeesListBinding binding;
-
-    // חיבור למסד הנתונים של Firebase
     private FirebaseFirestore db;
-
-    // האדפטר שמחבר בין רשימת הנתונים (List<User>) לרכיב התצוגה (RecyclerView)
     private EmployeesAdapter adapter;
-
-    // הרשימה שמחזיקה את נתוני העובדים בזיכרון
     private List<User> employeesList;
+
+    // משתנה שמחזיק את "צינור הנתונים" הפתוח מול Firebase.
+    // אנחנו צריכים לשמור אותו כדי שנוכל לסגור אותו כשיוצאים מהמסך.
+    private ListenerRegistration employeesListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // 1. אתחול ה-ViewBinding
+        // 1. אתחול ViewBinding
         binding = ActivityEmployeesListBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        // 2. אתחול Firebase ורשימת הנתונים
+        // 2. אתחול Firebase ורשימות
         db = FirebaseFirestore.getInstance();
         employeesList = new ArrayList<>();
 
-        // 3. הגדרת התצוגה של הרשימה (לינארית - שורה אחרי שורה)
+        // 3. הגדרת ה-RecyclerView
         binding.recyclerViewEmployees.setLayoutManager(new LinearLayoutManager(this));
 
-        // 4. יצירת האדפטר והגדרת מה קורה כשלוחצים על "ערוך"
-        // הפרמטר user מייצג את העובד הספציפי שנלחץ בשורה
+        // יצירת האדפטר והגדרת פעולת העריכה (בלחיצה על כפתור בעיפרון)
         adapter = new EmployeesAdapter(employeesList, user -> {
-            showEditDialog(user); // פתיחת החלון הקופץ לעריכה
+            showEditDialog(user);
         });
 
-        // חיבור האדפטר לרשימה הגרפית
         binding.recyclerViewEmployees.setAdapter(adapter);
 
-        // 5. כפתור חזרה למסך הקודם
+        // 4. כפתור חזרה
         binding.btnBack.setOnClickListener(v -> finish());
+    }
 
-        // 6. טעינת הנתונים הראשונית מהענן
-        loadEmployees();
+    // --- מחזור חיים של Activity (Lifecycle) ---
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        // כשהמסך עולה ונהיה גלוי למשתמש -> מתחילים להאזין לשינויים
+        startListeningToEmployees();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // כשהמסך יורד לרקע או נסגר -> מנתקים את ההאזנה כדי לא לבזבז משאבים
+        if (employeesListener != null) {
+            employeesListener.remove();
+            employeesListener = null;
+        }
     }
 
     /**
-     * פונקציה שמציגה חלון קופץ (Dialog) לעריכת פרטי העובד.
-     * @param user העובד שאת פרטיו רוצים לערוך.
+     * פונקציה להאזנה בזמן אמת לרשימת העובדים.
+     * כל שינוי ב-DB (הוספה, מחיקה, עריכה) יפעיל את הקוד הזה אוטומטית.
+     */
+    private void startListeningToEmployees() {
+        employeesListener = db.collection("users")
+                .whereEqualTo("role", User.ROLE_EMPLOYEE) // סינון: רק עובדים
+                .addSnapshotListener((value, error) -> {
+                    // טיפול בשגיאות חיבור
+                    if (error != null) {
+                        Toast.makeText(this, "שגיאה בטעינת נתונים", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    // ניקוי הרשימה הישנה כדי למנוע כפילויות
+                    employeesList.clear();
+
+                    if (value != null && !value.isEmpty()) {
+                        // מעבר על כל המסמכים שהתקבלו
+                        for (DocumentSnapshot document : value.getDocuments()) {
+                            User user = document.toObject(User.class);
+                            if (user != null) {
+                                employeesList.add(user);
+                            }
+                        }
+                        // עדכון האדפטר שיש מידע חדש
+                        adapter.notifyDataSetChanged();
+
+                        // הסתרת הודעת "אין עובדים"
+                        binding.tvEmptyState.setVisibility(View.GONE);
+                    } else {
+                        // אם מחקנו את כל העובדים -> הרשימה ריקה
+                        adapter.notifyDataSetChanged();
+                        binding.tvEmptyState.setVisibility(View.VISIBLE);
+                    }
+                });
+    }
+
+    /**
+     * הצגת דיאלוג לעריכת פרטי עובד.
      */
     private void showEditDialog(User user) {
-        // בניית הדיאלוג
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-
-        // "ניפוח" (Inflation) של קובץ ה-XML של הדיאלוג לתוך אובייקט View
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_edit_employee, null);
         builder.setView(view);
 
-        // קישור לשדות שבתוך הדיאלוג
+        // קישור לשדות בדיאלוג
         EditText etName = view.findViewById(R.id.etEditName);
         EditText etId = view.findViewById(R.id.etEditIdNumber);
         EditText etRate = view.findViewById(R.id.etEditHourlyRate);
 
-        // מילוי הנתונים הקיימים בתוך השדות (כדי שהמנהל יראה מה יש כרגע)
+        // מילוי נתונים קיימים
         etName.setText(user.getFullName());
-        if (user.getIdNumber() != null) {
-            etId.setText(user.getIdNumber());
-        }
+        if (user.getIdNumber() != null) etId.setText(user.getIdNumber());
         etRate.setText(String.valueOf(user.getHourlyRate()));
 
-        // הגדרת כפתור "שמור שינויים"
+        // כפתור שמירה
         builder.setPositiveButton("שמור שינויים", (dialog, which) -> {
-            // שליפת הנתונים החדשים שהוזנו
             String newName = etName.getText().toString().trim();
             String newId = etId.getText().toString().trim();
             String newRateStr = etRate.getText().toString().trim();
 
-            // בדיקות תקינות (Validations)
             if (TextUtils.isEmpty(newName) || TextUtils.isEmpty(newRateStr)) {
                 Toast.makeText(this, "נא למלא שם ושכר", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            // המרה של השכר ממחרוזת למספר עשרוני
             try {
                 double newRate = Double.parseDouble(newRateStr);
-
-                // קריאה לפונקציה שמעדכנת ב-Firebase
+                // עדכון ב-DB
                 updateEmployeeInFirestore(user.getUid(), newName, newId, newRate);
-
             } catch (NumberFormatException e) {
-                Toast.makeText(this, "שכר חייב להיות מספר תקין", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "שכר חייב להיות מספר", Toast.LENGTH_SHORT).show();
             }
         });
 
-        // כפתור ביטול - סוגר את הדיאלוג
         builder.setNegativeButton("ביטול", null);
-
-        // הצגת הדיאלוג
         builder.show();
     }
 
     /**
-     * פונקציה שמעדכנת את פרטי העובד ב-Firestore.
-     * משתמשת ב-update() ולא ב-set() כדי לא לדרוס שדות אחרים שלא שינינו (כמו אימייל).
+     * ביצוע העדכון ב-Firestore.
      */
     private void updateEmployeeInFirestore(String uid, String name, String idNum, double rate) {
-        // יצירת מפה (Map) שמכילה רק את השדות שאנחנו רוצים לשנות
         Map<String, Object> updates = new HashMap<>();
         updates.put("fullName", name);
         updates.put("idNumber", idNum);
         updates.put("hourlyRate", rate);
 
-        // שליחת העדכון ל-Firebase
         db.collection("users").document(uid).update(updates)
-                .addOnSuccessListener(aVoid -> {
-                    Toast.makeText(this, "הפרטים עודכנו בהצלחה", Toast.LENGTH_SHORT).show();
-                    // רענון הרשימה כדי לראות את השינויים מיד
-                    loadEmployees();
-                })
-                .addOnFailureListener(e -> {
-                    Toast.makeText(this, "שגיאה בעדכון: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
-    }
-
-    /**
-     * פונקציה לטעינת רשימת העובדים מ-Firestore.
-     * שולפת רק משתמשים שהתפקיד שלהם הוא 'employee'.
-     */
-    private void loadEmployees() {
-        db.collection("users")
-                .whereEqualTo("role", User.ROLE_EMPLOYEE) // סינון לפי תפקיד
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    // ניקוי הרשימה הישנה כדי למנוע כפילויות
-                    employeesList.clear();
-
-                    if (!queryDocumentSnapshots.isEmpty()) {
-                        // מעבר על כל המסמכים שהתקבלו
-                        for (DocumentSnapshot document : queryDocumentSnapshots) {
-                            User user = document.toObject(User.class); // המרת JSON לאובייקט User
-                            if (user != null) {
-                                employeesList.add(user);
-                            }
-                        }
-                        // עדכון האדפטר והסתרת הודעת "אין עובדים"
-                        adapter.notifyDataSetChanged();
-                        binding.tvEmptyState.setVisibility(View.GONE);
-                    } else {
-                        // אם אין תוצאות -> הצגת הודעת "אין עובדים"
-                        binding.tvEmptyState.setVisibility(View.VISIBLE);
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Toast.makeText(this, "שגיאה בטעינה: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
+                .addOnSuccessListener(aVoid -> Toast.makeText(this, "הפרטים עודכנו", Toast.LENGTH_SHORT).show())
+                .addOnFailureListener(e -> Toast.makeText(this, "שגיאה בעדכון: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
 }

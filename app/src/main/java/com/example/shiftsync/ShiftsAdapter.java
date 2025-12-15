@@ -17,35 +17,25 @@ import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * אדפטר לניהול רשימת המשמרות במסך המנהל.
- * האדפטר הזה חכם: הוא יודע לצבוע את המשמרת בצבעים שונים בהתאם למצב השיבוץ שלה
- * (מלאה, חלקית או ריקה).
- */
 public class ShiftsAdapter extends RecyclerView.Adapter<ShiftsAdapter.ShiftViewHolder> {
 
-    // --- ממשק (Interface) ---
-    // מאפשר ל-Activity להגיב ללחיצה על כפתור המחיקה בתוך השורה
+    // עדכון הממשק: הוספנו את onClick (לחיצה על הכרטיס עצמו)
     public interface OnShiftClickListener {
-        void onDeleteClick(int position);
+        void onDeleteClick(int position); // מחיקת כל המשמרת
+        void onShiftClick(Shift shift);   // צפייה בפרטי המשמרת
     }
 
-    // --- משתנים ---
     private List<Shift> shiftsList;
     private OnShiftClickListener listener;
 
-    // --- בנאי (Constructor) ---
     public ShiftsAdapter(List<Shift> shiftsList, OnShiftClickListener listener) {
         this.shiftsList = shiftsList;
         this.listener = listener;
     }
 
-    // --- מתודות של RecyclerView ---
-
     @NonNull
     @Override
     public ShiftViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        // טעינת העיצוב (XML) של שורה בודדת (item_shift)
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_shift, parent, false);
         return new ShiftViewHolder(view);
     }
@@ -54,53 +44,40 @@ public class ShiftsAdapter extends RecyclerView.Adapter<ShiftsAdapter.ShiftViewH
     public void onBindViewHolder(@NonNull ShiftViewHolder holder, int position) {
         Shift shift = shiftsList.get(position);
 
-        // 1. פרמוט והצגת השעות (למשל: 08:00 - 16:00)
         SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
         String start = timeFormat.format(shift.getStartTime());
         String end = timeFormat.format(shift.getEndTime());
         holder.tvTime.setText(start + " - " + end);
 
-        // 2. חישוב סטטוס תפוסה (Occupancy)
-        // בודקים כמה עובדים כבר רשומים (assigned) מתוך כמה שנדרש (required)
-        // הערה: השימוש ב-? מונע קריסה אם הרשימה null
         int current = (shift.getAssignedUserIds() != null) ? shift.getAssignedUserIds().size() : 0;
         int required = shift.getRequiredWorkers();
 
-        // עדכון הטקסט (למשל: "שיבוץ: 1/3")
         holder.tvStatus.setText("שיבוץ: " + current + "/" + required);
 
-        // 3. לוגיקת צבעים לפי מצב המשמרת
         if (current >= required) {
-            // מצב: מלא (Full) -> צבע ירוק
-            holder.cardView.setCardBackgroundColor(Color.parseColor("#E8F5E9")); // רקע ירוק בהיר
-            holder.tvStatus.setTextColor(Color.parseColor("#2E7D32"));       // טקסט ירוק כהה
-            // (אופציונלי: אפשר להוסיף אייקון V לטקסט)
+            holder.cardView.setCardBackgroundColor(Color.parseColor("#E8F5E9"));
+            holder.tvStatus.setTextColor(Color.parseColor("#2E7D32"));
         } else if (current > 0) {
-            // מצב: חלקי (Partial) -> צבע כתום
-            holder.cardView.setCardBackgroundColor(Color.parseColor("#FFF3E0")); // רקע כתום בהיר
-            holder.tvStatus.setTextColor(Color.parseColor("#EF6C00"));       // טקסט כתום כהה
+            holder.cardView.setCardBackgroundColor(Color.parseColor("#FFF3E0"));
+            holder.tvStatus.setTextColor(Color.parseColor("#EF6C00"));
         } else {
-            // מצב: ריק (Empty) -> צבע לבן רגיל
             holder.cardView.setCardBackgroundColor(Color.WHITE);
             holder.tvStatus.setTextColor(Color.DKGRAY);
         }
 
-        // 4. הגדרת כפתור המחיקה
-        holder.btnDelete.setOnClickListener(v -> {
-            if (listener != null) {
-                listener.onDeleteClick(position);
-            }
-        });
+        // כפתור מחיקת משמרת
+        holder.btnDelete.setOnClickListener(v -> listener.onDeleteClick(position));
+
+        // --- הוספה חדשה: לחיצה על הכרטיס כולו ---
+        holder.itemView.setOnClickListener(v -> listener.onShiftClick(shift));
     }
 
     @Override
     public int getItemCount() {
-        // בדיקת בטיחות למקרה שהרשימה טרם אותחלה
         if (shiftsList == null) return 0;
         return shiftsList.size();
     }
 
-    // --- ViewHolder ---
     public static class ShiftViewHolder extends RecyclerView.ViewHolder {
         TextView tvTime, tvStatus;
         CardView cardView;
@@ -108,7 +85,6 @@ public class ShiftsAdapter extends RecyclerView.Adapter<ShiftsAdapter.ShiftViewH
 
         public ShiftViewHolder(@NonNull View itemView) {
             super(itemView);
-            // קישור לרכיבים ב-XML
             tvTime = itemView.findViewById(R.id.tvShiftTime);
             tvStatus = itemView.findViewById(R.id.tvShiftStatus);
             cardView = itemView.findViewById(R.id.cardShift);

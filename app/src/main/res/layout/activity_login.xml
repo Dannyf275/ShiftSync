@@ -4,37 +4,51 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="24dp"
-    android:gravity="center">
+    android:gravity="center"
+    android:background="#FAFAFA">
+
+    <ImageView
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:src="@mipmap/ic_launcher_round"
+        android:layout_marginBottom="24dp"/>
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="התחברות למערכת"
-        android:textSize="24sp"
+        android:text="כניסה למערכת"
+        android:textSize="28sp"
         android:textStyle="bold"
+        android:textColor="#000000"
         android:layout_marginBottom="32dp"/>
 
     <EditText
         android:id="@+id/etLoginEmail"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="50dp"
+        android:background="@android:drawable/edit_text"
         android:hint="אימייל"
         android:inputType="textEmailAddress"
+        android:gravity="center"
         android:layout_marginBottom="16dp"/>
 
     <EditText
         android:id="@+id/etLoginPassword"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
+        android:layout_height="50dp"
+        android:background="@android:drawable/edit_text"
         android:hint="סיסמה"
-        android:inputType="textPassword" />
+        android:inputType="textPassword"
+        android:gravity="center"
+        android:layout_marginBottom="24dp"/>
 
     <Button
         android:id="@+id/btnLogin"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="60dp"
         android:text="התחבר"
+        android:textSize="18sp"
+        android:backgroundTint="#6200EE"
         android:layout_marginBottom="16dp"/>
 
     <TextView
@@ -43,6 +57,7 @@
         android:layout_height="wrap_content"
         android:text="אין לך משתמש? הירשם כאן"
         android:textColor="#6200EE"
-        android:textSize="16sp"/>
+        android:textSize="16sp"
+        android:padding="8dp"/>
 
 </LinearLayout>
