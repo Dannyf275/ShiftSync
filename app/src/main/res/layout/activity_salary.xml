@@ -1,130 +1,98 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#FAFAFA"
-    tools:context=".SalaryActivity">
+    android:background="#F5F5F5"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="דוח שכר חודשי"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="#6200EE"
+        android:layout_gravity="center"
+        android:layout_marginBottom="24dp"/>
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp"
-        android:background="#FFFFFF"
-        android:elevation="4dp"
-        android:gravity="center_vertical">
-
-        <ImageButton
-            android:id="@+id/btnBack"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_menu_revert"
-            app:tint="#000000"
-            android:contentDescription="חזרה"/>
-
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:background="#E0E0E0">
         <TextView
-            android:id="@+id/tvMonthTitle"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="דוח שעות ושכר"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:textColor="#000000"
-            android:layout_marginStart="16dp"/>
+            android:layout_weight="1"
+            android:text="תאריך"
+            android:textStyle="bold"/>
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="שעות עבודה"
+            android:gravity="center"
+            android:textStyle="bold"/>
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="סכום לתשלום"
+            android:gravity="end"
+            android:textStyle="bold"/>
     </LinearLayout>
 
-    <ScrollView
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvSalaryShifts"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#FFFFFF"/>
 
-        <LinearLayout
-            android:layout_width="match_parent"
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:background="#FFFFFF"
+        android:layout_marginTop="2dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:text="סה''כ לתשלום:"
+            android:textSize="18sp"
+            android:textStyle="bold"/>
 
-            <androidx.cardview.widget.CardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="8dp"
-                app:cardBackgroundColor="#6200EE">
+        <View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1"/>
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="24dp"
-                    android:gravity="center">
+        <TextView
+            android:id="@+id/tvTotalSalary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="₪0.00"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="#4CAF50"/>
+    </LinearLayout>
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="שכר משוער (לכל המשמרות)"
-                        android:textColor="#B3FFFFFF"
-                        android:textSize="16sp"/>
+    <Button
+        android:id="@+id/btnExportPdf"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:text="📄  הורד תלוש שכר (PDF)"
+        android:backgroundTint="#FF5722"
+        android:layout_marginTop="24dp"/>
 
-                    <TextView
-                        android:id="@+id/tvTotalSalary"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="₪0.00"
-                        android:textColor="#FFFFFF"
-                        android:textSize="48sp"
-                        android:textStyle="bold"/>
+    <Button
+        android:id="@+id/btnBack"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="חזרה"
+        android:backgroundTint="#757575"
+        android:layout_marginTop="8dp"/>
 
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginTop="16dp">
-
-                        <TextView
-                            android:id="@+id/tvTotalHours"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="סה''כ שעות: 0"
-                            android:textColor="#FFFFFF"
-                            android:textSize="16sp"/>
-
-                        <View
-                            android:layout_width="1dp"
-                            android:layout_height="match_parent"
-                            android:background="#FFFFFF"
-                            android:layout_marginHorizontal="12dp"/>
-
-                        <TextView
-                            android:id="@+id/tvHourlyRate"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="תעריף: 0 ₪"
-                            android:textColor="#FFFFFF"
-                            android:textSize="16sp"/>
-                    </LinearLayout>
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="פירוט משמרות שבוצעו:"
-                android:textStyle="bold"
-                android:textSize="18sp"
-                android:layout_marginTop="24dp"
-                android:layout_marginBottom="12dp"/>
-
-            <TextView
-                android:id="@+id/tvShiftsDetails"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="טוען נתונים..."
-                android:lineSpacingExtra="6dp"
-                android:textSize="14sp"
-                android:textColor="#424242"/>
-
-        </LinearLayout>
-    </ScrollView>
 </LinearLayout>

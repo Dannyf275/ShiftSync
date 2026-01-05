@@ -1,170 +1,195 @@
 package com.example.shiftsync;
 
-import android.content.Intent;
 import android.os.Bundle;
-import android.text.TextUtils;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
+// שים לב: חשוב לייבא את ה-SearchView הנכון (של AndroidX) לתאימות
+import androidx.appcompat.widget.SearchView;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.shiftsync.databinding.ActivityEmployeesListBinding;
 import com.example.shiftsync.models.User;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.ListenerRegistration;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
+/**
+ * מסך ניהול העובדים (עבור המנהל).
+ * מציג רשימה של כל המשתמשים שהם בתפקיד "employee".
+ * כולל יכולות חיפוש (סינון מקומי), מחיקה, ועריכת שכר.
+ */
 public class EmployeesListActivity extends AppCompatActivity {
 
-    private ActivityEmployeesListBinding binding;
+    // אובייקט לחיבור למסד הנתונים
     private FirebaseFirestore db;
-    private EmployeesAdapter adapter;
-    private List<User> employeesList;
-    private ListenerRegistration employeesListener;
+
+    // רכיבי הממשק (UI)
+    private RecyclerView rvEmployees;   // הרשימה הויזואלית
+    private EmployeesAdapter adapter;   // האדפטר שמקשר בין המידע לתצוגה
+    private SearchView searchView;      // שורת החיפוש
+
+    // רשימה שמחזיקה את *כל* העובדים שנטענו מהשרת.
+    // אנחנו שומרים אותה בצד כדי שנוכל לסנן ממנה תוצאות בלי לבקש שוב מהשרת בכל אות שמקלידים.
+    private List<User> fullList;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        binding = ActivityEmployeesListBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
+        setContentView(R.layout.activity_employees_list);
 
+        // אתחול Firebase
         db = FirebaseFirestore.getInstance();
-        employeesList = new ArrayList<>();
 
-        binding.recyclerViewEmployees.setLayoutManager(new LinearLayoutManager(this));
+        // קישור לרכיבים בקובץ ה-XML
+        rvEmployees = findViewById(R.id.rvEmployees);
+        searchView = findViewById(R.id.searchView);
 
-        adapter = new EmployeesAdapter(employeesList, user -> {
-            showEditDialog(user);
+        // כפתור חזרה למסך הראשי
+        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
+
+        // אתחול הרשימה המלאה
+        fullList = new ArrayList<>();
+
+        // הגדרת תצוגת הרשימה (טור אחד אנכי)
+        rvEmployees.setLayoutManager(new LinearLayoutManager(this));
+
+        // יצירת האדפטר והגדרת הפעולות (Callbacks) ללחיצות על כפתורים בתוך כל שורה
+        adapter = new EmployeesAdapter(new ArrayList<>(), new EmployeesAdapter.OnEmployeeClickListener() {
+            @Override
+            public void onDeleteClick(User user) {
+                // לחיצה על "מחק" -> הפעלת פונקציית המחיקה
+                deleteEmployee(user);
+            }
+            @Override
+            public void onEditClick(User user) {
+                // לחיצה על "ערוך" -> הפעלת דיאלוג עריכת שכר
+                showEditRateDialog(user);
+            }
         });
 
-        binding.recyclerViewEmployees.setAdapter(adapter);
+        // חיבור האדפטר לרשימה
+        rvEmployees.setAdapter(adapter);
 
-        binding.btnBack.setOnClickListener(v -> finish());
+        // טעינת הנתונים מהשרת
+        loadEmployees();
+
+        // הגדרת מנגנון החיפוש
+        setupSearch();
     }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        startListeningToEmployees();
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        if (employeesListener != null) {
-            employeesListener.remove();
-        }
-    }
-
-    private void startListeningToEmployees() {
-        employeesListener = db.collection("users")
-                .whereEqualTo("role", User.ROLE_EMPLOYEE)
+    /**
+     * טעינת רשימת העובדים מ-Firestore.
+     * אנו מאזינים לשינויים בזמן אמת (addSnapshotListener), כך שאם עובד נרשם עכשיו,
+     * הוא יופיע מיד ברשימה אצל המנהל.
+     */
+    private void loadEmployees() {
+        db.collection("users")
+                .whereEqualTo("role", User.ROLE_EMPLOYEE) // סינון: רק עובדים (לא מנהלים)
                 .addSnapshotListener((value, error) -> {
-                    if (error != null) return;
+                    if (error != null) return; // במקרה של שגיאה, יוצאים
 
-                    employeesList.clear();
-                    if (value != null && !value.isEmpty()) {
-                        for (DocumentSnapshot document : value.getDocuments()) {
-                            User user = document.toObject(User.class);
-                            if (user != null) {
-                                employeesList.add(user);
-                            }
+                    fullList.clear(); // מנקים את הרשימה הישנה
+
+                    if (value != null) {
+                        // המרה של כל מסמך לאובייקט User והוספה לרשימה המלאה
+                        for (DocumentSnapshot doc : value.getDocuments()) {
+                            fullList.add(doc.toObject(User.class));
                         }
-                        adapter.notifyDataSetChanged();
-                        binding.tvEmptyState.setVisibility(View.GONE);
-                    } else {
-                        adapter.notifyDataSetChanged();
-                        binding.tvEmptyState.setVisibility(View.VISIBLE);
                     }
+                    // טעינה ראשונית מציגה את כולם (ללא סינון)
+                    adapter.updateList(fullList);
                 });
     }
 
     /**
-     * פונקציה שמציגה את דיאלוג העריכה והמחיקה
+     * הגדרת המאזין לשורת החיפוש.
+     * הפונקציה מגיבה לכל שינוי בטקסט שהמשתמש מקליד.
      */
-    private void showEditDialog(User user) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        View view = LayoutInflater.from(this).inflate(R.layout.dialog_edit_employee, null);
-        builder.setView(view);
+    private void setupSearch() {
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                // נקרא כשלוחצים על "Enter" במקלדת
+                filter(query);
+                return false;
+            }
 
-        EditText etName = view.findViewById(R.id.etEditName);
-        EditText etId = view.findViewById(R.id.etEditIdNumber);
-        EditText etRate = view.findViewById(R.id.etEditHourlyRate);
-        Button btnDelete = view.findViewById(R.id.btnDeleteEmployee);
-
-        // מילוי נתונים
-        etName.setText(user.getFullName());
-        if (user.getIdNumber() != null) etId.setText(user.getIdNumber());
-        etRate.setText(String.valueOf(user.getHourlyRate()));
-
-        AlertDialog dialog = builder.create();
-
-        // --- כפתור מחיקה ---
-        btnDelete.setOnClickListener(v -> {
-            new AlertDialog.Builder(this)
-                    .setTitle("מחיקת עובד")
-                    .setMessage("האם למחוק את העובד מהרשימה?\n(פעולה זו תאפשר לך ליצור אותו מחדש עם סיסמה חדשה)")
-                    .setPositiveButton("כן, מחק", (d, w) -> {
-                        // מחיקה מ-Firestore
-                        db.collection("users").document(user.getUid()).delete()
-                                .addOnSuccessListener(aVoid -> {
-                                    Toast.makeText(this, "העובד נמחק בהצלחה", Toast.LENGTH_SHORT).show();
-                                    dialog.dismiss();
-                                })
-                                .addOnFailureListener(e -> Toast.makeText(this, "שגיאה במחיקה", Toast.LENGTH_SHORT).show());
-                    })
-                    .setNegativeButton("ביטול", null)
-                    .show();
-        });
-
-        // --- כפתור שמירה (מובנה בדיאלוג) ---
-        dialog.setButton(AlertDialog.BUTTON_POSITIVE, "שמור שינויים", (d, which) -> {
-            // הטיפול בלחיצה כדי למנוע סגירה אוטומטית במקרה של שגיאה נעשה בנפרד,
-            // אך לצורך הפשטות כאן נשתמש במימוש הסטנדרטי
-        });
-
-        dialog.setButton(AlertDialog.BUTTON_NEGATIVE, "ביטול", (d, w) -> dialog.dismiss());
-
-        dialog.show();
-
-        // הגדרת מאזין ל"שמור" אחרי שהדיאלוג הוצג (כדי למנוע סגירה אוטומטית אם חסר מידע)
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            String newName = etName.getText().toString().trim();
-            String newId = etId.getText().toString().trim();
-            String newRateStr = etRate.getText().toString().trim();
-
-            if (TextUtils.isEmpty(newName) || TextUtils.isEmpty(newRateStr)) {
-                Toast.makeText(this, "נא למלא את כל השדות", Toast.LENGTH_SHORT).show();
-            } else {
-                try {
-                    double newRate = Double.parseDouble(newRateStr);
-                    updateEmployeeInFirestore(user.getUid(), newName, newId, newRate);
-                    dialog.dismiss();
-                } catch (NumberFormatException e) {
-                    Toast.makeText(this, "שכר לא תקין", Toast.LENGTH_SHORT).show();
-                }
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                // נקרא בכל פעם שמקלידים/מוחקים אות
+                filter(newText);
+                return false;
             }
         });
     }
 
-    private void updateEmployeeInFirestore(String uid, String name, String idNum, double rate) {
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("fullName", name);
-        updates.put("idNumber", idNum);
-        updates.put("hourlyRate", rate);
+    /**
+     * פונקציית הסינון המקומי (Client-side Filtering).
+     * עוברת על הרשימה המלאה (`fullList`) ויוצרת רשימה חדשה רק עם התוצאות המתאימות.
+     * @param text - הטקסט לחיפוש.
+     */
+    private void filter(String text) {
+        List<User> filteredList = new ArrayList<>();
 
-        db.collection("users").document(uid).update(updates)
-                .addOnSuccessListener(aVoid -> Toast.makeText(this, "עודכן בהצלחה", Toast.LENGTH_SHORT).show())
-                .addOnFailureListener(e -> Toast.makeText(this, "שגיאה בעדכון", Toast.LENGTH_SHORT).show());
+        for (User user : fullList) {
+            // תנאי החיפוש: האם השם מכיל את הטקסט? או האם הת"ז מכילה את המספר?
+            // (toLowerCase מאפשר חיפוש ללא חשיבות לאותיות גדולות/קטנות באנגלית)
+            if (user.getFullName().toLowerCase().contains(text.toLowerCase()) ||
+                    user.getIdNumber().contains(text)) {
+                filteredList.add(user);
+            }
+        }
+
+        // עדכון האדפטר עם הרשימה המסוננת בלבד
+        adapter.updateList(filteredList);
+    }
+
+    /**
+     * מחיקת עובד מהמערכת.
+     * מציג דיאלוג אישור לפני המחיקה בפועל.
+     */
+    private void deleteEmployee(User user) {
+        new AlertDialog.Builder(this)
+                .setTitle("מחיקת עובד")
+                .setMessage("למחוק את " + user.getFullName() + "?")
+                .setPositiveButton("כן", (d, w) -> {
+                    // ביצוע המחיקה ב-Firestore
+                    db.collection("users").document(user.getUid()).delete();
+                })
+                .setNegativeButton("לא", null)
+                .show();
+    }
+
+    /**
+     * הצגת דיאלוג לעריכת שכר שעתי.
+     * יוצר תיבת טקסט (EditText) בתוך חלון קופץ (AlertDialog).
+     */
+    private void showEditRateDialog(User user) {
+        // יצירת שדה הקלט באופן דינמי (בקוד)
+        EditText input = new EditText(this);
+        input.setHint("שכר שעתי חדש");
+        // הגבלה למספרים בלבד (כולל עשרוני)
+        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        input.setText(String.valueOf(user.getHourlyRate())); // הצגת השכר הנוכחי
+
+        new AlertDialog.Builder(this)
+                .setTitle("עדכון שכר לעובד: " + user.getFullName())
+                .setView(input) // הכנסת שדה הקלט לדיאלוג
+                .setPositiveButton("עדכן", (d, w) -> {
+                    try {
+                        // המרת הקלט למספר ועדכון ב-Firestore
+                        double newRate = Double.parseDouble(input.getText().toString());
+                        db.collection("users").document(user.getUid()).update("hourlyRate", newRate);
+                    } catch (NumberFormatException e) {
+                        Toast.makeText(this, "ערך לא תקין", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("ביטול", null)
+                .show();
     }
 }

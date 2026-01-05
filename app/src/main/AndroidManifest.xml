@@ -42,6 +42,9 @@
             android:name=".EmployeeActivity"
             android:exported="false" />
         <activity
+            android:name=".ManageAnnouncementsActivity"
+            android:exported="false" />
+        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>

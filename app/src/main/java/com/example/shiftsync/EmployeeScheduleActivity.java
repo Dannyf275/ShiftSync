@@ -1,14 +1,16 @@
 package com.example.shiftsync;
 
 import android.os.Bundle;
+import android.widget.CalendarView;
+import android.widget.ImageButton;
+import android.widget.TextView;
 import android.widget.Toast;
-import android.util.Log;
-import android.view.View;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.shiftsync.databinding.ActivityEmployeeScheduleBinding;
 import com.example.shiftsync.models.Shift;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
@@ -21,152 +23,223 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * מסך לוח המשמרות לעובד (Employee Schedule).
+ * מאפשר צפייה במשמרות פנויות/משובצות לפי תאריך, ושליחת בקשות שיבוץ למנהל.
+ */
 public class EmployeeScheduleActivity extends AppCompatActivity {
 
-    private ActivityEmployeeScheduleBinding binding;
+    // אובייקטים לחיבור ל-Firebase
     private FirebaseFirestore db;
     private FirebaseAuth mAuth;
-    private EmployeeShiftsAdapter adapter;
-    private List<Shift> shiftsList;
-    private Calendar selectedDate;
 
-    // משתנה לשמירת שם העובד הנוכחי
-    private String currentUserName = "עובד";
+    // רכיבי התצוגה (UI)
+    private RecyclerView rvShifts;      // הרשימה הנגללת של המשמרות
+    private CalendarView calendarView;  // לוח השנה לבחירת תאריך
+    private TextView tvDateTitle;       // כותרת המציגה את התאריך שנבחר
+
+    // אדפטר ורשימה לניהול הנתונים בתצוגה
+    private ShiftsAdapter adapter;
+    private List<Shift> shiftsList;
+
+    // משתנה לשמירת שם העובד הנוכחי (כדי לשמור את השם יחד עם ה-ID בעת בקשת משמרת)
+    private String currentUserName = "Employee";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        binding = ActivityEmployeeScheduleBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
+        setContentView(R.layout.activity_employee_schedule);
 
+        // אתחול Firebase
         db = FirebaseFirestore.getInstance();
         mAuth = FirebaseAuth.getInstance();
+
+        // טעינת שם העובד מיד בעליית המסך (נדרש לשיבוץ)
+        loadCurrentUserName();
+
+        // קישור לרכיבים ב-XML
+        rvShifts = findViewById(R.id.rvShifts);
+        calendarView = findViewById(R.id.calendarView);
+        tvDateTitle = findViewById(R.id.tvDateTitle);
+        ImageButton btnBack = findViewById(R.id.btnBack);
+
+        // אתחול הרשימה והגדרת ה-RecyclerView
         shiftsList = new ArrayList<>();
-        selectedDate = Calendar.getInstance();
+        rvShifts.setLayoutManager(new LinearLayoutManager(this));
 
-        // 1. שליפת שם העובד מיד בכניסה למסך
-        fetchCurrentUserName();
+        // יצירת האדפטר. אנו משתמשים באותו אדפטר של המנהל, אך מגדירים התנהגות שונה ללחיצות.
+        adapter = new ShiftsAdapter(shiftsList, new ShiftsAdapter.OnShiftClickListener() {
+            @Override
+            public void onDeleteClick(int position) {
+                // עובד לא מורשה למחוק משמרות מהמערכת
+                Toast.makeText(EmployeeScheduleActivity.this, "אין הרשאה למחוק", Toast.LENGTH_SHORT).show();
+            }
 
-        binding.tvDateTitle.setText("בחר תאריך לצפייה והרשמה");
+            @Override
+            public void onEditClick(Shift shift) {
+                // עובד לא מורשה לערוך פרטי משמרת
+                Toast.makeText(EmployeeScheduleActivity.this, "אין הרשאה לערוך", Toast.LENGTH_SHORT).show();
+            }
 
-        setupRecyclerView();
-        setupCalendar();
-        loadShiftsForDate(selectedDate);
+            @Override
+            public void onShiftClick(Shift shift) {
+                // לחיצה על גוף המשמרת -> פותחת דיאלוג להרשמה/ביטול
+                handleShiftRegistration(shift);
+            }
+        });
 
-        binding.btnBack.setOnClickListener(v -> finish());
+        rvShifts.setAdapter(adapter);
+
+        // הגדרת מאזין לשינוי תאריך בלוח השנה
+        calendarView.setOnDateChangeListener((view, year, month, dayOfMonth) -> {
+            // יצירת אובייקט Calendar עם התאריך שנבחר
+            Calendar sel = Calendar.getInstance();
+            sel.set(year, month, dayOfMonth);
+
+            // טעינת המשמרות לתאריך החדש
+            loadShiftsForDate(sel);
+        });
+
+        // טעינה ראשונית של משמרות להיום (בעת פתיחת המסך)
+        loadShiftsForDate(Calendar.getInstance());
+
+        // כפתור חזרה למסך הקודם
+        btnBack.setOnClickListener(v -> finish());
     }
 
     /**
-     * שליפת שם המשתמש הנוכחי מ-Firestore.
-     * נחוץ כדי שכאשר העובד יבקש משמרת, נשמור גם את שמו עבור המנהל.
+     * פונקציה ששולפת את שם המשתמש הנוכחי (FullName) מה-Firestore.
+     * אנו צריכים את השם כדי שכאשר העובד מבקש משמרת, נשמור גם את ה-ID וגם את השם שלו
+     * ברשימת הבקשות (Pending), כדי שהמנהל יראה מי ביקש.
      */
-    private void fetchCurrentUserName() {
-        String uid = mAuth.getCurrentUser().getUid();
-        db.collection("users").document(uid).get().addOnSuccessListener(doc -> {
-            if (doc.exists() && doc.getString("fullName") != null) {
-                currentUserName = doc.getString("fullName");
-            }
-        });
+    private void loadCurrentUserName() {
+        if (mAuth.getCurrentUser() != null) {
+            db.collection("users").document(mAuth.getCurrentUser().getUid()).get()
+                    .addOnSuccessListener(doc -> {
+                        if (doc.exists()) {
+                            currentUserName = doc.getString("fullName");
+                        }
+                    });
+        }
     }
 
-    private void setupRecyclerView() {
-        binding.rvShifts.setLayoutManager(new LinearLayoutManager(this));
-        String currentUid = mAuth.getCurrentUser().getUid();
-
-        adapter = new EmployeeShiftsAdapter(shiftsList, currentUid, new EmployeeShiftsAdapter.OnShiftActionListener() {
-            @Override
-            public void onSignUp(Shift shift) {
-                requestShift(shift); // שינינו את שם הפונקציה ל-requestShift
-            }
-
-            @Override
-            public void onCancel(Shift shift) {
-                cancelRequest(shift);
-            }
-        });
-
-        binding.rvShifts.setAdapter(adapter);
-    }
-
-    private void setupCalendar() {
-        binding.calendarView.setOnDateChangeListener((view, year, month, dayOfMonth) -> {
-            selectedDate.set(year, month, dayOfMonth);
-            loadShiftsForDate(selectedDate);
-        });
-    }
-
+    /**
+     * טעינת המשמרות עבור תאריך ספציפי.
+     * הפונקציה מבצעת שאילתה ל-Firestore לפי טווח זמנים (מתחילת היום ועד סופו).
+     * @param date - התאריך שנבחר בלוח השנה.
+     */
     private void loadShiftsForDate(Calendar date) {
-        // ... (אותו קוד חישוב תאריכים כמו קודם) ...
+        // חישוב תחילת היום (00:00:00)
         Calendar startOfDay = (Calendar) date.clone();
         startOfDay.set(Calendar.HOUR_OF_DAY, 0);
         startOfDay.set(Calendar.MINUTE, 0);
         startOfDay.set(Calendar.SECOND, 0);
         startOfDay.set(Calendar.MILLISECOND, 0);
 
+        // חישוב סוף היום (23:59:59)
         Calendar endOfDay = (Calendar) date.clone();
         endOfDay.set(Calendar.HOUR_OF_DAY, 23);
         endOfDay.set(Calendar.MINUTE, 59);
         endOfDay.set(Calendar.SECOND, 59);
 
+        // עדכון הכותרת בתצוגה
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
-        binding.tvDateTitle.setText("משמרות לתאריך: " + sdf.format(date.getTime()));
+        tvDateTitle.setText("משמרות לתאריך: " + sdf.format(date.getTime()));
 
+        // ביצוע השאילתה בזמן אמת (addSnapshotListener)
+        // זה אומר שאם המנהל יוסיף משמרת בזמן שהעובד צופה במסך, היא תופיע מיד.
         db.collection("shifts")
-                .whereGreaterThanOrEqualTo("startTime", startOfDay.getTimeInMillis())
-                .whereLessThanOrEqualTo("startTime", endOfDay.getTimeInMillis())
+                .whereGreaterThanOrEqualTo("startTime", startOfDay.getTimeInMillis()) // החל מ-00:00
+                .whereLessThanOrEqualTo("startTime", endOfDay.getTimeInMillis())     // עד 23:59
                 .addSnapshotListener((value, error) -> {
-                    if (error != null) return;
-                    shiftsList.clear();
+                    if (error != null) return; // טיפול בשגיאה
+
+                    shiftsList.clear(); // ניקוי הרשימה הישנה
+
                     if (value != null) {
+                        // המרת המסמכים שהתקבלו לאובייקטי Shift
                         for (DocumentSnapshot doc : value.getDocuments()) {
                             Shift shift = doc.toObject(Shift.class);
                             if (shift != null) shiftsList.add(shift);
                         }
                     }
+                    // רענון התצוגה באדפטר
                     adapter.notifyDataSetChanged();
                 });
     }
 
-    // --- לוגיקה מעודכנת להרשמה (Pending) ---
-
-    private void requestShift(Shift shift) {
+    /**
+     * פונקציה שמחליטה איזה דיאלוג להציג לעובד בעת לחיצה על משמרת.
+     * הלוגיקה:
+     * 1. האם העובד כבר משובץ (Assigned)? -> הצע ביטול שיבוץ.
+     * 2. האם העובד כבר שלח בקשה (Pending)? -> הצע ביטול בקשה.
+     * 3. האם העובד לא רשום כלל? -> הצע שליחת בקשה חדשה.
+     */
+    private void handleShiftRegistration(Shift shift) {
         String uid = mAuth.getCurrentUser().getUid();
 
-        // הגנה: אם השם טרם נטען, נשתמש במייל או בערך ברירת מחדל
-        if (currentUserName == null || currentUserName.isEmpty()) {
-            currentUserName = mAuth.getCurrentUser().getEmail();
+        // בדיקה האם ה-ID שלי נמצא ברשימת המשובצים
+        boolean isAssigned = shift.getAssignedUserIds() != null && shift.getAssignedUserIds().contains(uid);
+        // בדיקה האם ה-ID שלי נמצא ברשימת הממתינים
+        boolean isPending = shift.getPendingUserIds() != null && shift.getPendingUserIds().contains(uid);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+
+        if (isAssigned) {
+            // מקרה 1: כבר משובץ
+            builder.setTitle("ביטול שיבוץ");
+            builder.setMessage("אתה משובץ למשמרת זו. האם לבטל?");
+            builder.setPositiveButton("כן, בטל", (d, w) -> cancelAssignment(shift, uid));
+        }
+        else if (isPending) {
+            // מקרה 2: ממתין לאישור
+            builder.setTitle("ביטול בקשה");
+            builder.setMessage("שלחת בקשה למשמרת זו. האם לבטל את הבקשה?");
+            builder.setPositiveButton("כן, בטל", (d, w) -> cancelRequest(shift, uid));
+        }
+        else {
+            // מקרה 3: לא רשום -> שליחת בקשה
+            builder.setTitle("בקשה לשיבוץ");
+            builder.setMessage("האם לשלוח בקשה למנהל להצטרף למשמרת?");
+            builder.setPositiveButton("שלח בקשה", (d, w) -> sendRequestToShift(shift, uid));
         }
 
-        Log.d("SHIFT_DEBUG", "Requesting shift: " + shift.getShiftId() + " for user: " + currentUserName);
-
-        db.collection("shifts").document(shift.getShiftId())
-                .update(
-                        "pendingUserIds", FieldValue.arrayUnion(uid),
-                        "pendingUserNames", FieldValue.arrayUnion(currentUserName)
-                )
-                .addOnSuccessListener(aVoid -> {
-                    Log.d("SHIFT_DEBUG", "Success! Request sent.");
-                    Toast.makeText(this, "הבקשה נשלחה לאישור מנהל", Toast.LENGTH_SHORT).show();
-                })
-                .addOnFailureListener(e -> {
-                    Log.e("SHIFT_DEBUG", "Error sending request: " + e.getMessage());
-                    Toast.makeText(this, "שגיאה בשליחת בקשה", Toast.LENGTH_SHORT).show();
-                });
+        builder.setNegativeButton("סגור", null);
+        builder.show();
     }
 
-    private void cancelRequest(Shift shift) {
-        String uid = mAuth.getCurrentUser().getUid();
-
-        // ביטול יכול להיות משני מצבים: או שאני בהמתנה, או שאני כבר משובץ
-        // לצורך הפשטות ננסה להסיר משתי הרשימות (לא מזיק אם לא קיים)
+    /**
+     * שליחת בקשה למשמרת.
+     * הפעולה: הוספת ה-ID והשם לרשימות ה-Pending ב-Firestore.
+     * שימוש ב-arrayUnion מבטיח שלא יהיו כפילויות.
+     */
+    private void sendRequestToShift(Shift shift, String uid) {
         db.collection("shifts").document(shift.getShiftId())
-                .update(
-                        "pendingUserIds", FieldValue.arrayRemove(uid),
-                        "pendingUserNames", FieldValue.arrayRemove(currentUserName),
-                        "assignedUserIds", FieldValue.arrayRemove(uid),
-                        "assignedUserNames", FieldValue.arrayRemove(currentUserName)
-                )
-                .addOnSuccessListener(aVoid -> Toast.makeText(this, "הבקשה/השיבוץ בוטל", Toast.LENGTH_SHORT).show())
-                .addOnFailureListener(e -> Toast.makeText(this, "שגיאה בביטול", Toast.LENGTH_SHORT).show());
+                .update("pendingUserIds", FieldValue.arrayUnion(uid),
+                        "pendingUserNames", FieldValue.arrayUnion(currentUserName))
+                .addOnSuccessListener(aVoid -> Toast.makeText(this, "הבקשה נשלחה למנהל", Toast.LENGTH_SHORT).show())
+                .addOnFailureListener(e -> Toast.makeText(this, "שגיאה בשליחת בקשה", Toast.LENGTH_SHORT).show());
+    }
+
+    /**
+     * ביטול בקשה (לפני שאושרה).
+     * הפעולה: הסרת ה-ID והשם מרשימות ה-Pending.
+     */
+    private void cancelRequest(Shift shift, String uid) {
+        db.collection("shifts").document(shift.getShiftId())
+                .update("pendingUserIds", FieldValue.arrayRemove(uid),
+                        "pendingUserNames", FieldValue.arrayRemove(currentUserName))
+                .addOnSuccessListener(aVoid -> Toast.makeText(this, "הבקשה בוטלה", Toast.LENGTH_SHORT).show());
+    }
+
+    /**
+     * ביטול שיבוץ קיים.
+     * הפעולה: הסרת ה-ID והשם מרשימות ה-Assigned.
+     */
+    private void cancelAssignment(Shift shift, String uid) {
+        db.collection("shifts").document(shift.getShiftId())
+                .update("assignedUserIds", FieldValue.arrayRemove(uid),
+                        "assignedUserNames", FieldValue.arrayRemove(currentUserName))
+                .addOnSuccessListener(aVoid -> Toast.makeText(this, "השיבוץ בוטל", Toast.LENGTH_SHORT).show());
     }
 }

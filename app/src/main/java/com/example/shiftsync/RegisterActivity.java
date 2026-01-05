@@ -3,8 +3,6 @@ package com.example.shiftsync;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.util.Log;
-import android.util.Patterns;
 import android.view.View;
 import android.widget.Toast;
 
@@ -13,131 +11,133 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.shiftsync.databinding.ActivityRegisterBinding;
 import com.example.shiftsync.models.User;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 /**
- * מסך ההרשמה (Registration Screen).
- * מסך זה מטפל ביצירת משתמשים חדשים במערכת.
- * התהליך כולל:
- * 1. בדיקות תקינות קלט (שדות חובה, ת"ז תקינה, אימייל וכו').
- * 2. יצירת חשבון מאובטח ב-Firebase Authentication.
- * 3. יצירת מסמך פרופיל ב-Firebase Firestore עם הפרטים המלאים.
+ * מסך ההרשמה (Register Screen).
+ * מאפשר למשתמש חדש ליצור חשבון במערכת.
+ * המשתמש מזין פרטים אישיים, בוחר תפקיד (עובד/מנהל), ומגדיר סיסמה.
+ * המערכת מבצעת אימות נתונים לפני השליחה לשרת.
  */
 public class RegisterActivity extends AppCompatActivity {
 
-    // גישה לרכיבי העיצוב
+    // משתנה לגישה לרכיבי העיצוב (ViewBinding)
     private ActivityRegisterBinding binding;
 
-    // רכיבי Firebase
+    // רכיב האימות (ליצירת משתמש חדש)
     private FirebaseAuth mAuth;
+
+    // רכיב מסד הנתונים (לשמירת פרטי המשתמש המורחבים)
     private FirebaseFirestore db;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // 1. אתחול ViewBinding
+        // אתחול ה-Binding
         binding = ActivityRegisterBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        // 2. אתחול Firebase
+        // אתחול מופעי Firebase
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
 
-        // 3. לוגיקה להצגת/הסתרת שדה "קוד מנהל"
-        // מאזינים לשינוי בבחירת כפתור הרדיו (RadioGroup)
+        // --- לוגיקת שדה קוד מנהל ---
+        // אנו מאזינים לשינויים בכפתורי הבחירה (Radio Buttons).
+        // אם המשתמש בוחר "מנהל", אנו חושפים שדה להזנת קוד סודי.
+        // אם הוא בוחר "עובד", השדה מוסתר.
         binding.rgRole.setOnCheckedChangeListener((group, checkedId) -> {
             if (checkedId == R.id.rbManager) {
-                // אם נבחר "מנהל" -> הצג את שדה הסיסמה
                 binding.etManagerCode.setVisibility(View.VISIBLE);
             } else {
-                // אחרת -> הסתר
                 binding.etManagerCode.setVisibility(View.GONE);
             }
         });
 
-        // 4. כפתור הרשמה
+        // הגדרת כפתור ההרשמה - מפעיל את הפונקציה registerUser
         binding.btnRegister.setOnClickListener(v -> registerUser());
 
-        // 5. כפתור "יש לך חשבון? התחבר"
-        binding.tvBackToLogin.setOnClickListener(v -> {
-            startActivity(new Intent(RegisterActivity.this, LoginActivity.class));
-            finish(); // סגירת ההרשמה כדי לחסוך זיכרון
-        });
+        // כפתור חזרה למסך התחברות (למקרה שלחצו בטעות על הרשמה)
+        binding.tvBackToLogin.setOnClickListener(v -> finish());
     }
 
     /**
-     * הפונקציה הראשית שמבצעת את תהליך ההרשמה.
+     * הפונקציה הראשית שמנהלת את תהליך ההרשמה.
+     * היא מבצעת ולידציה (בדיקת תקינות) לכל השדות, ורק אם הכל תקין, פונה לשרת.
      */
     private void registerUser() {
-        // שליפת הנתונים מהשדות וניקוי רווחים
+        // 1. שליפת הנתונים מהשדות וניקוי רווחים (trim)
         String name = binding.etFullName.getText().toString().trim();
         String idNumber = binding.etIdNumber.getText().toString().trim();
         String email = binding.etEmail.getText().toString().trim();
         String password = binding.etPassword.getText().toString().trim();
         String confirmPassword = binding.etConfirmPassword.getText().toString().trim();
 
-        // --- שלב א': בדיקות תקינות (Validations) ---
+        // 2. בדיקת התפקיד שנבחר
+        boolean isManager = binding.rbManager.isChecked();
+        // הגדרת המחרוזת לחיפוש ב-DB לפי הקבועים במחלקת User
+        String role = isManager ? User.ROLE_MANAGER : User.ROLE_EMPLOYEE;
+
+        // --- בדיקות תקינות (Validations) ---
+        // בדיקות אלו מתבצעות מקומית במכשיר לפני הפנייה לשרת (חוסך זמן ומשאבים)
 
         if (TextUtils.isEmpty(name)) {
             binding.etFullName.setError("נא להזין שם מלא");
             return;
         }
 
-        // בדיקת אורך ת"ז (חייב להיות 9 ספרות בישראל)
+        // בדיקה שתעודת הזהות מכילה בדיוק 9 ספרות
         if (TextUtils.isEmpty(idNumber) || idNumber.length() != 9) {
-            binding.etIdNumber.setError("תעודת זהות חייבת להכיל 9 ספרות");
+            binding.etIdNumber.setError("נא להזין ת.ז תקינה (9 ספרות)");
             return;
         }
 
-        // בדיקת פורמט אימייל
-        if (TextUtils.isEmpty(email) || !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            binding.etEmail.setError("אימייל לא תקין");
+        if (TextUtils.isEmpty(email)) {
+            binding.etEmail.setError("נא להזין אימייל");
             return;
         }
 
-        // בדיקת חוזק סיסמה (מינימום 6 תווים - דרישה של Firebase)
+        // סיסמה קצרה מדי לא מאובטחת וגם נדחית ע"י Firebase (מינימום 6)
         if (TextUtils.isEmpty(password) || password.length() < 6) {
-            binding.etPassword.setError("סיסמה קצרה מדי");
+            binding.etPassword.setError("סיסמה חייבת להכיל 6 תווים לפחות");
             return;
         }
 
-        // בדיקת התאמת סיסמאות
+        // וידוא שהמשתמש לא טעה בהקלדת הסיסמה
         if (!password.equals(confirmPassword)) {
             binding.etConfirmPassword.setError("הסיסמאות אינן תואמות");
             return;
         }
 
-        // קביעת התפקיד ובדיקת הרשאות מנהל
-        String role = User.ROLE_EMPLOYEE; // ברירת מחדל
-        if (binding.rbManager.isChecked()) {
-            role = User.ROLE_MANAGER;
+        // אימות קוד מנהל (רק אם נבחר תפקיד מנהל)
+        // זהו מנגנון אבטחה בסיסי למניעת הרשמת סתם אנשים כמנהלים.
+        if (isManager) {
             String code = binding.etManagerCode.getText().toString().trim();
-            // אימות קוד מנהל (Hardcoded כרגע)
-            if (!"123456".equals(code)) {
+            if (!code.equals("123456")) { // קוד קבוע שהוגדר מראש בפרויקט
                 binding.etManagerCode.setError("קוד מנהל שגוי");
                 return;
             }
         }
 
-        // --- שלב ב': ביצוע ההרשמה ---
+        // --- תהליך ההרשמה מול Firebase ---
 
-        // הצגת אינדיקטור טעינה ונטרול הכפתור למניעת לחיצות כפולות
+        // הצגת טוען (Progress Bar) והקפאת הכפתור למניעת לחיצות כפולות
         binding.progressBar.setVisibility(View.VISIBLE);
         binding.btnRegister.setEnabled(false);
 
-        String finalRole = role; // משתנה סופי לשימוש בתוך ה-Listener
-
-        // 1. יצירת המשתמש ב-Authentication (אימייל + סיסמה)
+        // שלב א': יצירת המשתמש ב-Authentication
         mAuth.createUserWithEmailAndPassword(email, password)
                 .addOnSuccessListener(authResult -> {
-                    Log.d("REGISTER", "User created in Auth successfully");
-                    // אם הצליח -> עוברים לשמירת הפרטים ב-Firestore
-                    saveUserToFirestore(authResult.getUser().getUid(), name, email, finalRole, idNumber);
+                    // ההרשמה הראשונית הצליחה! קיבלנו משתמש עם UID.
+                    FirebaseUser firebaseUser = authResult.getUser();
+                    if (firebaseUser != null) {
+                        // כעת עוברים לשלב ב': שמירת הפרטים הנוספים במסד הנתונים
+                        saveUserToFirestore(firebaseUser.getUid(), name, idNumber, email, role);
+                    }
                 })
                 .addOnFailureListener(e -> {
-                    // כישלון ב-Auth (למשל: אימייל כבר קיים)
-                    Log.e("REGISTER", "Auth failed: " + e.getMessage());
+                    // כישלון בהרשמה (למשל: אימייל כבר קיים במערכת)
                     binding.progressBar.setVisibility(View.GONE);
                     binding.btnRegister.setEnabled(true);
                     Toast.makeText(RegisterActivity.this, "שגיאה בהרשמה: " + e.getMessage(), Toast.LENGTH_LONG).show();
@@ -145,46 +145,41 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     /**
-     * פונקציה לשמירת פרטי המשתמש המלאים ב-Firestore.
+     * פונקציה לשמירת פרטי המשתמש המלאים במסד הנתונים Firestore.
+     * פונקציה זו נקראת רק לאחר ש-Authentication הצליח.
      */
-    private void saveUserToFirestore(String uid, String name, String email, String role, String idNumber) {
-        double initialRate = 0.0; // שכר התחלתי (המנהל יעדכן בהמשך)
+    private void saveUserToFirestore(String uid, String name, String idNum, String email, String role) {
+        // הגדרת שכר התחלתי כברירת מחדל (ניתן לעריכה אח"כ ע"י מנהל)
+        double initialRate = 30.0;
 
-        // יצירת אובייקט User (DTO)
-        User newUser = new User(uid, name, email, role, initialRate, idNumber);
+        // יצירת אובייקט User מסודר (POJO)
+        // סדר הפרמטרים בבנאי חייב להתאים למה שהגדרנו ב-User.java:
+        // (UID, FullName, ID Number, Email, Role, Hourly Rate)
+        User newUser = new User(uid, name, idNum, email, role, initialRate);
 
-        // שמירת המסמך באוסף "users" תחת ה-UID של המשתמש
+        // שמירה באוסף "users".
+        // אנו משתמשים ב-UID כשם המסמך (.document(uid)) כדי שיהיה קל למצוא אותו בעתיד.
         db.collection("users").document(uid).set(newUser)
                 .addOnSuccessListener(aVoid -> {
-                    Log.d("REGISTER", "User data saved to Firestore. Moving to Login.");
+                    // הכל עבר בהצלחה!
+                    binding.progressBar.setVisibility(View.GONE);
+                    Toast.makeText(this, "ההרשמה בוצעה בהצלחה!", Toast.LENGTH_SHORT).show();
 
-                    // הצלחה מלאה!
-                    Toast.makeText(RegisterActivity.this, "נרשמת בהצלחה!", Toast.LENGTH_SHORT).show();
+                    // מעבר למסך ההתחברות (כדי שהמשתמש יתחבר עם הפרטים החדשים)
+                    Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
 
-                    // ניתוק המשתמש:
-                    // Firebase מחבר אוטומטית אחרי הרשמה, אבל אנחנו רוצים
-                    // שהמשתמש יבצע כניסה מסודרת דרך מסך הלוגין.
-                    mAuth.signOut();
+                    // מחיקת היסטוריית המסכים - כדי שלחיצה על Back לא תחזיר להרשמה
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
 
-                    navigateToLogin();
+                    startActivity(intent);
+                    finish();
                 })
                 .addOnFailureListener(e -> {
-                    // מקרה נדיר: נוצר ב-Auth אבל נכשל ב-Firestore
-                    Log.e("REGISTER", "Firestore save failed: " + e.getMessage());
+                    // מקרה נדיר: נוצר Auth אבל נכשל ה-Firestore.
+                    // בפרויקט אמיתי אולי נרצה למחוק את ה-Auth במקרה כזה, אבל כאן נסתפק בהודעה.
                     binding.progressBar.setVisibility(View.GONE);
                     binding.btnRegister.setEnabled(true);
-                    Toast.makeText(RegisterActivity.this, "נרשמת, אך שמירת הפרטים נכשלה: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, "שגיאה בשמירת נתונים: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
-    }
-
-    /**
-     * פונקציית עזר למעבר למסך ההתחברות.
-     */
-    private void navigateToLogin() {
-        Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
-        // מחיקת ההיסטוריה כדי שלחיצה על Back לא תחזיר להרשמה
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
-        finish();
     }
 }

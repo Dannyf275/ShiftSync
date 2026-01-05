@@ -3,115 +3,124 @@ package com.example.shiftsync;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
+import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
-
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
-
 import com.example.shiftsync.models.User;
-
 import java.util.List;
 
 /**
- * מחלקה זו (Adapter) אחראית לחבר בין רשימת הנתונים (User) לבין התצוגה הגרפית (RecyclerView).
- * היא יוצרת את הכרטיסים הוויזואליים וממלאת אותם בתוכן.
+ * אדפטר (Adapter) לרשימת העובדים.
+ * תפקידו לקשר בין רשימת העובדים (List<User>) לבין הרכיב הגרפי שמציג אותם (RecyclerView).
+ * הוא יוצר את התצוגה לכל שורה וממלא אותה בתוכן הרלוונטי.
  */
-public class EmployeesAdapter extends RecyclerView.Adapter<EmployeesAdapter.EmployeeViewHolder> {
+public class EmployeesAdapter extends RecyclerView.Adapter<EmployeesAdapter.ViewHolder> {
 
-    // --- הגדרת הממשק (Interface) ---
-    // הממשק הזה משמש כ"ערוץ תקשורת" החוצה ל-Activity.
-    // כשיקרה משהו בתוך האדפטר (כמו לחיצה), אנחנו נודיע למי שמממש את הממשק הזה.
+    /**
+     * ממשק (Interface) להעברת אירועי לחיצה חזרה ל-Activity.
+     * האדפטר עצמו לא יודע "למחוק עובד" או "לפתוח דיאלוג עריכה", הוא רק יודע שהמשתמש לחץ על הכפתור.
+     * ה-Activity (שמממש את הממשק הזה) יבצע את הלוגיקה בפועל מול Firebase.
+     */
     public interface OnEmployeeClickListener {
-        void onEditClick(User user); // פונקציה שתופעל כשלוחצים על "ערוך"
+        void onDeleteClick(User user); // לחיצה על פח אשפה
+        void onEditClick(User user);   // לחיצה על עיפרון (עריכת שכר)
     }
 
-    // --- משתנים (Fields) ---
-    // ממוקמים בראש המחלקה לסדר וארגון.
-    private List<User> employeesList;         // רשימת העובדים להצגה
-    private OnEmployeeClickListener listener; // המאזין לאירועים
+    // רשימת העובדים שמוצגת כרגע על המסך
+    private List<User> employees;
 
-    // --- בנאי (Constructor) ---
+    // המאזין לאירועים (ה-Activity)
+    private OnEmployeeClickListener listener;
+
     /**
-     * בנאי יחיד ומחייב.
-     * @param employeesList הרשימה שרוצים להציג.
-     * @param listener הרכיב שיקבל את אירועי הלחיצה (בדרך כלל ה-Activity).
+     * בנאי (Constructor).
+     * @param employees - הרשימה ההתחלתית.
+     * @param listener - מי שיטפל בלחיצות הכפתורים.
      */
-    public EmployeesAdapter(List<User> employeesList, OnEmployeeClickListener listener) {
-        this.employeesList = employeesList;
+    public EmployeesAdapter(List<User> employees, OnEmployeeClickListener listener) {
+        this.employees = employees;
         this.listener = listener;
     }
 
-    // --- מתודות של RecyclerView ---
+    /**
+     * פונקציה לעדכון הרשימה (למשל בעת חיפוש/סינון).
+     * כשאנחנו מקלידים בתיבת החיפוש, אנחנו שולחים לכאן רשימה מסוננת,
+     * והפונקציה מרעננת את התצוגה.
+     */
+    public void updateList(List<User> newList) {
+        this.employees = newList;
+        notifyDataSetChanged(); // פקודה ל-RecyclerView לצייר מחדש את הכל
+    }
 
     /**
-     * שלב 1: יצירת ה"קליפה" הוויזואלית.
-     * הפונקציה לוקחת את קובץ ה-XML (item_employee) ויוצרת ממנו אובייקט View בזיכרון.
+     * יצירת המראה הוויזואלי של שורה אחת (ViewHolder).
+     * הפונקציה "מנפחת" (Inflate) את קובץ ה-XML שיצרנו (item_employee.xml).
      */
     @NonNull
     @Override
-    public EmployeeViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_employee, parent, false);
-        return new EmployeeViewHolder(view);
+    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_employee, parent, false);
+        return new ViewHolder(view);
     }
 
     /**
-     * שלב 2: מילוי הנתונים.
-     * הפונקציה רצה עבור כל שורה ומכניסה את המידע הנכון לשדות הטקסט.
+     * חיבור הנתונים לשורה ספציפית (Binding).
+     * כאן אנחנו לוקחים את פרטי העובד מהרשימה ושמים אותם בתוך ה-TextViews וה-ImageView.
      */
     @Override
-    public void onBindViewHolder(@NonNull EmployeeViewHolder holder, int position) {
-        // שליפת העובד הנוכחי לפי המיקום
-        User employee = employeesList.get(position);
+    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        User user = employees.get(position);
 
-        // עדכון הטקסטים במסך
-        holder.tvName.setText(employee.getFullName());
-        holder.tvEmail.setText(employee.getEmail());
+        // 1. הצגת טקסטים
+        holder.tvName.setText(user.getFullName());
+        holder.tvId.setText("ת.ז: " + user.getIdNumber());
+        holder.tvRate.setText("שכר שעתי: " + user.getHourlyRate());
 
-        // טיפול בשכר: המרה למחרוזת והוספת הסימן ₪
-        holder.tvRate.setText(employee.getHourlyRate() + " ₪");
+        // 2. טיפול בתמונת פרופיל
+        // אם למשתמש יש תמונה שמורה (Base64), נמיר אותה לתמונה אמיתית (Bitmap) ונציג.
+        // אחרת - נציג תמונת ברירת מחדל (אייקון עגול).
+        if (user.getProfileImage() != null && !user.getProfileImage().isEmpty()) {
+            holder.ivProfile.setImageBitmap(ImageUtils.stringToBitmap(user.getProfileImage()));
+        } else {
+            holder.ivProfile.setImageResource(R.mipmap.ic_launcher_round);
+        }
 
-        // הערה: ניתן להוסיף כאן גם הצגה של ת"ז אם נרצה בעתיד
-        // String idNum = (employee.getIdNumber() != null) ? employee.getIdNumber() : "";
-
-        // הגדרת הלחיצה על כפתור "ערוך פרטים"
-        holder.btnEdit.setOnClickListener(v -> {
-            // בדיקת בטיחות: מוודאים שהמאזין קיים לפני שקוראים לו
-            if (listener != null) {
-                listener.onEditClick(employee);
-            }
-        });
+        // 3. הגדרת כפתורי הפעולה (עריכה ומחיקה)
+        holder.btnDelete.setOnClickListener(v -> listener.onDeleteClick(user));
+        holder.btnEdit.setOnClickListener(v -> listener.onEditClick(user));
     }
 
     /**
-     * החזרת כמות הפריטים ברשימה.
-     * הוספתי בדיקה האם הרשימה null כדי למנוע קריסה במקרה של אתחול שגוי.
+     * כמה פריטים יש ברשימה?
      */
     @Override
     public int getItemCount() {
-        if (employeesList == null) {
-            return 0;
-        }
-        return employeesList.size();
+        return employees == null ? 0 : employees.size();
     }
 
-    // --- מחלקה פנימית (ViewHolder) ---
     /**
-     * מחלקה שמחזיקה את האלמנטים של העיצוב (Views) עבור שורה אחת.
-     * מונעת את הצורך לחפש אותם מחדש (findViewById) בכל גלילה.
+     * מחלקת ViewHolder - מחזיקה את ההפניות לרכיבים הגרפיים.
+     * זה מונע מאיתנו לחפש את הרכיבים (findViewById) שוב ושוב בכל גלילה.
      */
-    public static class EmployeeViewHolder extends RecyclerView.ViewHolder {
-        TextView tvName, tvEmail, tvRate;
-        Button btnEdit; // שימוש ב-Button רגיל של אנדרואיד
+    public static class ViewHolder extends RecyclerView.ViewHolder {
+        // המשתנים חייבים להתאים לסוגים בקובץ item_employee.xml
+        TextView tvName, tvId, tvRate;
+        ImageButton btnDelete, btnEdit; // שימוש ב-ImageButton כי ב-XML הגדרנו אייקונים
+        ImageView ivProfile;
 
-        public EmployeeViewHolder(@NonNull View itemView) {
+        public ViewHolder(@NonNull View itemView) {
             super(itemView);
-            // קישור בין הקוד לרכיבים ב-XML
+            // קישור ה-Java ל-XML לפי ה-IDs שהגדרנו
             tvName = itemView.findViewById(R.id.tvEmployeeName);
-            tvEmail = itemView.findViewById(R.id.tvEmployeeEmail);
+            tvId = itemView.findViewById(R.id.tvEmployeeId);
             tvRate = itemView.findViewById(R.id.tvEmployeeRate);
+
+            btnDelete = itemView.findViewById(R.id.btnDeleteEmployee);
             btnEdit = itemView.findViewById(R.id.btnEditEmployee);
+
+            ivProfile = itemView.findViewById(R.id.ivEmployeeProfile);
         }
     }
 }

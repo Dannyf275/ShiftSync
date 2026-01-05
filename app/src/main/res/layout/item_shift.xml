@@ -4,41 +4,85 @@
     android:id="@+id/cardShift"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="8dp"
-    android:elevation="4dp"
-    app:cardCornerRadius="8dp">
+    android:layout_marginBottom="12dp"
+    android:layout_marginHorizontal="4dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="4dp"
+    android:backgroundTint="#FFFFFF">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="16dp"
+            android:gravity="center_vertical">
+
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@android:drawable/ic_menu_recent_history"
+                app:tint="#6200EE"/>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="16dp">
+
+                <TextView
+                    android:id="@+id/tvShiftTime"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="08:00 - 16:00"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="#000000"/>
+
+                <TextView
+                    android:id="@+id/tvShiftStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="שיבוץ: 0/3"
+                    android:textSize="14sp"
+                    android:textColor="#757575"
+                    android:layout_marginTop="4dp"/>
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/btnEditShift"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_edit"
+                app:tint="#1976D2"
+                android:contentDescription="ערוך"
+                android:layout_marginEnd="8dp"/>
+
+            <ImageButton
+                android:id="@+id/btnDeleteShift"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_delete"
+                app:tint="#D32F2F"
+                android:contentDescription="מחק"/>
+        </LinearLayout>
 
         <TextView
-            android:id="@+id/tvShiftTime"
-            android:layout_width="wrap_content"
+            android:id="@+id/tvShiftNotes"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="08:00 - 16:00"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:textColor="#000000"/>
-
-        <TextView
-            android:id="@+id/tvShiftStatus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="מצב תפוסה: 0/3"
+            android:background="#FFF9C4"
+            android:textColor="#5D4037"
+            android:padding="12dp"
+            android:text="הערה: יש להגיע חצי שעה לפני הזמן"
+            android:textStyle="italic"
             android:textSize="14sp"
-            android:layout_marginTop="4dp"/>
-
-        <ImageButton
-            android:id="@+id/btnDeleteShift"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="end"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_menu_delete"
-            app:tint="#D32F2F" />
-
-    </LinearLayout>
+            android:visibility="gone"/> </LinearLayout>
 </androidx.cardview.widget.CardView>

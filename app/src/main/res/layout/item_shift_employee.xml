@@ -1,36 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
+    android:padding="12dp"
     android:gravity="center_vertical"
-    android:padding="8dp"
     android:background="?attr/selectableItemBackground">
 
     <ImageView
-        android:layout_width="32dp"
-        android:layout_height="32dp"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
         android:src="@android:drawable/ic_menu_my_calendar"
-        app:tint="#757575"
-        xmlns:app="http://schemas.android.com/apk/res-auto"/>
+        android:layout_marginEnd="12dp"
+        android:contentDescription="icon"
+        app:tint="#757575" />
 
     <TextView
         android:id="@+id/tvEmployeeName"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:text="ישראל ישראלי"
+        android:text="שם העובד"
         android:textSize="16sp"
         android:textColor="#000000"
-        android:layout_marginStart="12dp"/>
+        android:textStyle="bold" />
 
     <ImageButton
         android:id="@+id/btnRemoveEmployee"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:src="@android:drawable/ic_menu_delete"
         android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@android:drawable/ic_delete"
-        app:tint="#D32F2F"
-        xmlns:app="http://schemas.android.com/apk/res-auto"/>
+        android:contentDescription="מחק עובד מהמשמרת"
+        app:tint="#D32F2F" />
 
 </LinearLayout>
