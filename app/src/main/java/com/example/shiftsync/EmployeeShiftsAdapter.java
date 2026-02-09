@@ -1,5 +1,6 @@
 package com.example.shiftsync;
 
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.provider.CalendarContract;
@@ -11,6 +12,7 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+// ייבוא הספריות החיוניות (וודא שהן קיימות ב-build.gradle)
 import androidx.annotation.NonNull;
 import androidx.cardview.widget.CardView;
 import androidx.recyclerview.widget.RecyclerView;
@@ -22,131 +24,101 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * אדפטר המציג את רשימת המשמרות עבור העובד.
- * האדפטר מטפל בלוגיקה הוויזואלית של כל שורה:
- * - צבע רקע שונה לכל סטטוס (ירוק=משובץ, כתום=ממתין, לבן=פנוי).
- * - כפתורים המשתנים בהתאם (הרשמה, ביטול, הוספה ליומן).
+ * אדפטר לרשימת המשמרות בתצוגת עובד.
+ * מציג סטטוסים שונים (פנוי/ממתין/משובץ) ומאפשר הוספה ליומן גוגל.
  */
 public class EmployeeShiftsAdapter extends RecyclerView.Adapter<EmployeeShiftsAdapter.ViewHolder> {
 
-    // רשימת המשמרות להצגה
     private List<Shift> shiftsList;
-
-    // המזהה של העובד הנוכחי (כדי לבדוק אם *אני* רשום למשמרת הספציפית)
     private String currentUserId;
-
-    // מאזין ללחיצות (מעביר את הפעולה חזרה ל-Activity)
     private OnShiftActionListener listener;
 
-    /**
-     * ממשק (Interface) להגדרת הפעולות האפשריות.
-     * ה-Activity שמפעיל את האדפטר חייב לממש את הפונקציות האלו.
-     */
+    // ממשק להעברת אירועי לחיצה ל-Activity
     public interface OnShiftActionListener {
-        void onSignUp(Shift shift); // בקשת הרשמה
-        void onCancel(Shift shift); // ביטול בקשה
+        void onSignUp(Shift shift);
+        void onCancel(Shift shift);
     }
 
-    /**
-     * בנאי (Constructor)
-     * @param shiftsList - הנתונים להצגה.
-     * @param currentUserId - ה-ID של העובד המחובר.
-     * @param listener - מי מטפל בלחיצות הכפתורים.
-     */
     public EmployeeShiftsAdapter(List<Shift> shiftsList, String currentUserId, OnShiftActionListener listener) {
         this.shiftsList = shiftsList;
         this.currentUserId = currentUserId;
         this.listener = listener;
     }
 
-    /**
-     * יצירת המראה הוויזואלי של שורה בודדת (ViewHolder).
-     * טוען את קובץ ה-XML שנקרא item_employee_shift.
-     */
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        // טעינת קובץ העיצוב (XML) של שורת משמרת לעובד
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_employee_shift, parent, false);
         return new ViewHolder(view);
     }
 
-    /**
-     * חיבור הנתונים לשורה ספציפית (Binding).
-     * כאן מתרחשת כל הלוגיקה של "איך השורה נראית".
-     */
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Shift shift = shiftsList.get(position);
 
-        // 1. הצגת שעות המשמרת (פורמט HH:mm)
+        // 1. הצגת זמני המשמרת
         SimpleDateFormat sdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
         holder.tvTime.setText(sdf.format(shift.getStartTime()) + " - " + sdf.format(shift.getEndTime()));
 
-        // 2. חישוב תפוסה (כמה רשומים מתוך כמה צריך)
+        // 2. חישוב והצגת תפוסה
         int currentRegistered = (shift.getAssignedUserIds() != null) ? shift.getAssignedUserIds().size() : 0;
         int maxRequired = shift.getRequiredWorkers();
-
         holder.tvStatus.setText("תפוסה: " + currentRegistered + "/" + maxRequired);
 
-        // 3. בדיקת סטטוס אישי מול המשמרת
-        // האם אני ברשימת המאושרים?
+        // 3. בדיקת הסטטוס של המשתמש הנוכחי מול המשמרת
         boolean amISignedUp = shift.getAssignedUserIds() != null && shift.getAssignedUserIds().contains(currentUserId);
-        // האם אני ברשימת הממתינים?
         boolean amIPending = shift.getPendingUserIds() != null && shift.getPendingUserIds().contains(currentUserId);
-        // האם המשמרת מלאה לגמרי?
         boolean isFull = currentRegistered >= maxRequired;
 
-        // איפוס כפתור היומן (מוסתר כברירת מחדל, יוצג רק אם אני משובץ)
+        // --- ברירת מחדל: הסתרת כפתור היומן ---
+        // (הכפתור יופיע רק אם המשתמש משובץ סופית)
         holder.btnCalendar.setVisibility(View.GONE);
 
-        // --- לוגיקת צבעים וכפתורים ---
-
+        // 4. לוגיקה לשינוי המראה לפי הסטטוס
         if (amISignedUp) {
-            // מצב 1: אני משובץ ומאושר למשמרת
-            holder.cardView.setCardBackgroundColor(Color.parseColor("#E8F5E9")); // רקע ירוק בהיר
+            // === מקרה 1: המשתמש משובץ (מאושר) ===
+            holder.cardView.setCardBackgroundColor(Color.parseColor("#E8F5E9")); // ירוק בהיר
             holder.btnAction.setText("משובץ ✅");
-            holder.btnAction.setBackgroundColor(Color.GRAY); // כפתור אפור (לא לחיץ)
-            holder.btnAction.setEnabled(false); // כרגע אין ביטול עצמי דרך הכפתור הזה
+            holder.btnAction.setBackgroundColor(Color.GRAY);
+            holder.btnAction.setEnabled(false); // אין צורך בפעולה נוספת על הכפתור הראשי
 
-            // הצגת כפתור "הוסף ליומן" (כי השיבוץ סופי)
+            // הצגת כפתור היומן!
             holder.btnCalendar.setVisibility(View.VISIBLE);
+            // לחיצה עליו תוסיף את האירוע ליומן
             holder.btnCalendar.setOnClickListener(v -> addToGoogleCalendar(holder.itemView.getContext(), shift));
 
         } else if (amIPending) {
-            // מצב 2: ביקשתי להירשם אבל המנהל טרם אישר
-            holder.cardView.setCardBackgroundColor(Color.parseColor("#FFF3E0")); // רקע כתום בהיר
+            // === מקרה 2: המשתמש ממתין לאישור ===
+            holder.cardView.setCardBackgroundColor(Color.parseColor("#FFF3E0")); // כתום בהיר
             holder.btnAction.setText("ממתין... (בטל)");
-            holder.btnAction.setBackgroundColor(Color.parseColor("#FF9800")); // כפתור כתום
+            holder.btnAction.setBackgroundColor(Color.parseColor("#FF9800")); // כתום
             holder.btnAction.setEnabled(true);
-            holder.btnAction.setOnClickListener(v -> listener.onCancel(shift)); // לחיצה מבטלת את הבקשה
+            holder.btnAction.setOnClickListener(v -> listener.onCancel(shift));
 
         } else if (isFull) {
-            // מצב 3: המשמרת מלאה ואני לא רשום אליה
-            holder.cardView.setCardBackgroundColor(Color.parseColor("#EEEEEE")); // רקע אפור
+            // === מקרה 3: המשמרת מלאה ואין מקום ===
+            holder.cardView.setCardBackgroundColor(Color.parseColor("#EEEEEE")); // אפור
             holder.btnAction.setText("מלא");
             holder.btnAction.setBackgroundColor(Color.GRAY);
-            holder.btnAction.setEnabled(false); // אי אפשר להירשם
+            holder.btnAction.setEnabled(false);
 
         } else {
-            // מצב 4: המשמרת פנויה ואני יכול להירשם
-            holder.cardView.setCardBackgroundColor(Color.WHITE); // רקע לבן רגיל
+            // === מקרה 4: המשמרת פנויה להרשמה ===
+            holder.cardView.setCardBackgroundColor(Color.WHITE);
             holder.btnAction.setText("הירשם");
-            holder.btnAction.setBackgroundColor(Color.parseColor("#6200EE")); // כפתור סגול
+            holder.btnAction.setBackgroundColor(Color.parseColor("#6200EE")); // סגול
             holder.btnAction.setEnabled(true);
-            holder.btnAction.setOnClickListener(v -> listener.onSignUp(shift)); // לחיצה שולחת בקשה
+            holder.btnAction.setOnClickListener(v -> listener.onSignUp(shift));
         }
     }
 
     /**
-     * פונקציה לפתיחת יומן חיצוני (Google Calendar וכו') והוספת אירוע.
-     * משתמשת ב-Intent מובנה של אנדרואיד (CalendarContract).
+     * פונקציה להוספת המשמרת ליומן גוגל (או כל יומן אחר במכשיר).
      */
-    private void addToGoogleCalendar(android.content.Context context, Shift shift) {
+    private void addToGoogleCalendar(Context context, Shift shift) {
         try {
-            // יצירת כוונה (Intent) להוספת אירוע
             Intent intent = new Intent(Intent.ACTION_INSERT);
-
-            // הגדרת סוג הנתונים כאירועי יומן
             intent.setData(CalendarContract.Events.CONTENT_URI);
 
             // מילוי פרטי האירוע
@@ -154,40 +126,38 @@ public class EmployeeShiftsAdapter extends RecyclerView.Adapter<EmployeeShiftsAd
             intent.putExtra(CalendarContract.Events.DESCRIPTION, "משמרת שובצה דרך האפליקציה");
             intent.putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, shift.getStartTime());
             intent.putExtra(CalendarContract.EXTRA_EVENT_END_TIME, shift.getEndTime());
-
-            // סימון הזמן כ"לא פנוי" (Busy)
             intent.putExtra(CalendarContract.Events.AVAILABILITY, CalendarContract.Events.AVAILABILITY_BUSY);
 
-            // הפעלת האפליקציה החיצונית
+            // פתיחת האפליקציה החיצונית
             context.startActivity(intent);
         } catch (Exception e) {
-            // למקרה שאין שום אפליקציית יומן מותקנת במכשיר
             Toast.makeText(context, "לא נמצאה אפליקציית יומן", Toast.LENGTH_SHORT).show();
         }
     }
 
     @Override
     public int getItemCount() {
-        if (shiftsList == null) return 0;
-        return shiftsList.size();
+        return shiftsList == null ? 0 : shiftsList.size();
     }
 
     /**
-     * מחלקת ViewHolder - שומרת את ההפניות לרכיבים הגרפיים בשורה.
+     * מחלקת ה-ViewHolder: מחזיקה את הפניות לרכיבים הגרפיים.
      */
     public static class ViewHolder extends RecyclerView.ViewHolder {
         TextView tvTime, tvStatus;
-        Button btnAction;      // כפתור הפעולה הראשי (הירשם/בטל)
-        ImageButton btnCalendar; // כפתור הוספה ליומן (האייקון הקטן)
-        CardView cardView;     // הכרטיס כולו (לשינוי צבע הרקע)
+        Button btnAction;
+        ImageButton btnCalendar; // כפתור היומן
+        CardView cardView;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
             tvTime = itemView.findViewById(R.id.tvShiftTime);
             tvStatus = itemView.findViewById(R.id.tvShiftStatus);
             btnAction = itemView.findViewById(R.id.btnAction);
-            btnCalendar = itemView.findViewById(R.id.btnAddToCalendar);
             cardView = itemView.findViewById(R.id.cardShift);
+
+            // חשוב: וודא שה-ID הזה קיים ב-item_employee_shift.xml
+            btnCalendar = itemView.findViewById(R.id.btnAddToCalendar);
         }
     }
 }
