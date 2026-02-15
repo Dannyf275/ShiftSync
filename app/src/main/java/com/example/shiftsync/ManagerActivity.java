@@ -29,10 +29,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
-/**
- * מסך הבית של המנהל (Manager Dashboard).
- * מרכז את כל פעולות הניהול ומציג תמונת מצב עדכנית.
- */
+//מסך מנהל
 public class ManagerActivity extends AppCompatActivity {
 
     // גישה לרכיבי ה-XML באמצעות ViewBinding
@@ -57,13 +54,13 @@ public class ManagerActivity extends AppCompatActivity {
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
 
-        // 1. אתחול מנגנון בחירת התמונה (חייב להתבצע לפני השימוש)
+        //  אתחול מנגנון בחירת התמונה (חייב להתבצע לפני השימוש)
         setupImagePicker();
 
-        // 2. הגדרת לחיצה על תמונת הפרופיל -> פתיחת הגלריה
+        //  הגדרת לחיצה על תמונת הפרופיל -> פתיחת הגלריה
         binding.ivProfileImage.setOnClickListener(v -> openGallery());
 
-        // 3. אתחול הגרפים וטעינת הנתונים
+        //  אתחול הגרפים וטעינת הנתונים
         setupPieChart();          // הגדרות עיצוב לגרף העוגה
         loadManagerDetails();     // הצגת שם המנהל והתמונה הנוכחית
         calculateMonthlyStats();  // חישוב נתונים לגרף ולסטטיסטיקה

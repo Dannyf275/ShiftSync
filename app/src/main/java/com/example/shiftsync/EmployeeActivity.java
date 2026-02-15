@@ -1,5 +1,4 @@
 package com.example.shiftsync;
-
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
@@ -7,11 +6,9 @@ import android.os.Bundle;
 import android.provider.MediaStore;
 import android.view.View;
 import android.widget.Toast;
-
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
-
 import com.example.shiftsync.databinding.ActivityEmployeeBinding;
 import com.example.shiftsync.models.Announcement;
 import com.example.shiftsync.models.Shift;
@@ -20,55 +17,46 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
-
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
 
-/**
- * מסך הבית של העובד (Employee Dashboard).
- * מסך זה מרכז את כל המידע הרלוונטי לעובד:
- * 1. הצגת שם ותמונה.
- * 2. הצגת המשמרת הקרובה ביותר.
- * 3. חישוב שכר חודשי משוער.
- * 4. הצגת הודעות מערכת אחרונות מהמנהל.
- * 5. ניווט למסכים נוספים (לוח משמרות, דוח שכר).
- */
+//מסך עובד
 public class EmployeeActivity extends AppCompatActivity {
 
-    // קישור לרכיבי התצוגה (XML) באמצעות ViewBinding
+    // קישור לרכיבי התצוגה
     private ActivityEmployeeBinding binding;
 
-    // אובייקטים לניהול חיבור ונתונים ב-Firebase
+    // חיבור ושליפת נתונים מהפיירבייס - אובייקטים
     private FirebaseAuth mAuth;
     private FirebaseFirestore db;
 
-    // משתנה לניהול תהליך בחירת התמונה מהגלריה
+    // בחירת תמונה מהגלריה
     private ActivityResultLauncher<Intent> imagePickerLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // אתחול ה-Binding (מחליף את findViewById)
+        // הפעלת ה-Binding
         binding = ActivityEmployeeBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        // אתחול מופעי Firebase
+        // הפעלת מופעי פיירבייס
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
 
-        // אתחול המנגנון לבחירת תמונה (חובה לבצע לפני השימוש)
+        // הפעלת מנגנון בחירת תמונה
         setupImagePicker();
 
-        // --- טעינת נתונים ראשונית ---
+        // טעינה ראשונה
         loadEmployeeData();        // שם ותמונה
         loadNextShift();           // המשמרת הבאה
         calculateMonthlySalary();  // שכר משוער
         loadLatestAnnouncement();  // הודעה אחרונה
 
-        // --- הגדרת כפתורים (Listeners) ---
+        // מאזינים
 
         // כפתור רענון ידני (למקרה שהנתונים לא התעדכנו)
         binding.btnRefreshData.setOnClickListener(v -> {
@@ -85,10 +73,10 @@ public class EmployeeActivity extends AppCompatActivity {
             imagePickerLauncher.launch(intent);
         });
 
-        // מעבר למסך "לוח משמרות" (הרשמה למשמרות)
+        // מעבר למסך לוח משמרות
         binding.btnViewSchedule.setOnClickListener(v -> startActivity(new Intent(this, EmployeeScheduleActivity.class)));
 
-        // מעבר למסך "דוח שכר" (PDF ופירוט)
+        // מעבר למסך דוח שכר
         binding.btnMySalary.setOnClickListener(v -> startActivity(new Intent(this, SalaryActivity.class)));
 
         // התנתקות מהמערכת
@@ -100,31 +88,25 @@ public class EmployeeActivity extends AppCompatActivity {
         });
     }
 
-    /**
-     * פונקציה לטעינת ההודעה האחרונה שפורסמה ע"י המנהל.
-     * משתמשת ב-SnapshotListener כדי להאזין לשינויים בזמן אמת.
-     */
+    //טעינת הודעות מנהל
     private void loadLatestAnnouncement() {
         db.collection("announcements")
                 .orderBy("timestamp", Query.Direction.DESCENDING) // מיון לפי זמן (מהחדש לישן)
                 .limit(1) // אנחנו רוצים רק את ההודעה הכי חדשה
                 .addSnapshotListener((value, error) -> {
                     if (error != null) {
-                        // אם יש שגיאה, נסתיר את הכרטיס
                         binding.cardAnnouncement.setVisibility(View.GONE);
                         return;
                     }
 
                     if (value != null && !value.isEmpty()) {
-                        // אם נמצאה הודעה, נחלץ אותה
                         DocumentSnapshot doc = value.getDocuments().get(0);
                         Announcement announcement = doc.toObject(Announcement.class);
 
                         if (announcement != null) {
-                            // 1. חשיפת הכרטיס למשתמש
                             binding.cardAnnouncement.setVisibility(View.VISIBLE);
 
-                            // 2. הזנת התוכן (כותרת, תוכן, תאריך)
+                            //  הזנת התוכן (כותרת, תוכן, תאריך)
                             binding.tvAnnTitle.setText(announcement.getTitle());
                             binding.tvAnnContent.setText(announcement.getContent());
 
@@ -132,22 +114,18 @@ public class EmployeeActivity extends AppCompatActivity {
                             binding.tvAnnDate.setText(sdf.format(announcement.getTimestamp()));
                         }
                     } else {
-                        // אם אין הודעות בכלל במסד הנתונים -> נסתיר את הכרטיס
+                        // אם אין הודעות בכלל במסד הנתונים נסתיר את הכרטיס
                         binding.cardAnnouncement.setVisibility(View.GONE);
                     }
                 });
     }
 
-    /**
-     * פונקציה למציאת המשמרת הקרובה ביותר של העובד.
-     * הלוגיקה: שולפים את כל המשמרות העתידיות, ומסננים בצד הלקוח (באפליקציה)
-     * את המשמרת הראשונה שבה העובד מופיע ברשימת ה-assignedUserIds.
-     */
+    //מציאת המשמרת הבאה של העובד
     private void loadNextShift() {
         long now = System.currentTimeMillis();
         String uid = mAuth.getCurrentUser().getUid();
 
-        // שאילתה: כל המשמרות שזמן ההתחלה שלהן הוא בעתיד, ממוינות לפי זמן עולה.
+        // שאילתה: כל המשמרות שזמן ההתחלה שלהן הוא בעתיד, ממוינות לפי זמן עולה
         db.collection("shifts")
                 .whereGreaterThan("startTime", now)
                 .orderBy("startTime", Query.Direction.ASCENDING)
@@ -155,12 +133,12 @@ public class EmployeeActivity extends AppCompatActivity {
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     Shift nextShift = null;
 
-                    // לולאת סינון: מחפשים את המשמרת הראשונה שהעובד משובץ אליה
+                    // מחפשים את המשמרת הראשונה שהעובד משובץ אליה
                     for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
                         Shift shift = doc.toObject(Shift.class);
                         if (shift != null && shift.getAssignedUserIds() != null && shift.getAssignedUserIds().contains(uid)) {
                             nextShift = shift;
-                            break; // מצאנו את הקרובה ביותר, מפסיקים לחפש
+                            break;
                         }
                     }
 
@@ -181,9 +159,9 @@ public class EmployeeActivity extends AppCompatActivity {
                 });
     }
 
-    /**
-     * הגדרת ה-Launcher לטיפול בתוצאה של בחירת תמונה מהגלריה.
-     */
+
+      //הגדרת ה-Launcher לטיפול בתוצאה של בחירת תמונה מהגלריה
+
     private void setupImagePicker() {
         imagePickerLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
@@ -194,13 +172,13 @@ public class EmployeeActivity extends AppCompatActivity {
                             // המרה מ-URI ל-Bitmap
                             Bitmap bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), imageUri);
 
-                            // שימוש במחלקת העזר ImageUtils להקטנת התמונה (קריטי לביצועים!)
+                            // שימוש במחלקת העזר ImageUtils להקטנת התמונה
                             Bitmap resized = ImageUtils.resizeBitmap(bitmap, 500);
 
                             // הצגה מיידית למשתמש
                             binding.ivProfileImage.setImageBitmap(resized);
 
-                            // שמירה ב-Firebase
+                            // שמירה בפיירבייס
                             String base64Image = ImageUtils.bitmapToString(resized);
                             saveImageToFirebase(base64Image);
 
@@ -212,9 +190,7 @@ public class EmployeeActivity extends AppCompatActivity {
         );
     }
 
-    /**
-     * שמירת מחרוזת התמונה (Base64) במסמך המשתמש ב-Firestore.
-     */
+    //שמירת התמונה בפיירבייס
     private void saveImageToFirebase(String base64Image) {
         if (mAuth.getCurrentUser() == null) return;
         db.collection("users").document(mAuth.getCurrentUser().getUid())
@@ -222,9 +198,7 @@ public class EmployeeActivity extends AppCompatActivity {
                 .addOnSuccessListener(aVoid -> Toast.makeText(this, "תמונת פרופיל עודכנה!", Toast.LENGTH_SHORT).show());
     }
 
-    /**
-     * טעינת פרטי העובד (שם ותמונה) להצגה בראש המסך (Header).
-     */
+    //טעינת פרטי העובד בראש המסך
     private void loadEmployeeData() {
         if (mAuth.getCurrentUser() == null) return;
         db.collection("users").document(mAuth.getCurrentUser().getUid()).get()
@@ -244,12 +218,7 @@ public class EmployeeActivity extends AppCompatActivity {
                 });
     }
 
-    /**
-     * חישוב שכר חודשי משוער.
-     * שלב 1: שליפת השכר השעתי של העובד.
-     * שלב 2: שליפת כל המשמרות בחודש הנוכחי שבהן העובד שובץ.
-     * שלב 3: סיכום שעות * תעריף.
-     */
+    //חישוב שכר חודשי
     private void calculateMonthlySalary() {
         String uid = mAuth.getCurrentUser().getUid();
 

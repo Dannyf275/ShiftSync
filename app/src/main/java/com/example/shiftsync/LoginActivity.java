@@ -11,133 +11,110 @@ import com.example.shiftsync.models.User;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 
-/**
- * מסך ההתחברות (Login Screen).
- * זהו המסך הראשון שהמשתמש רואה (אלא אם הוא כבר מחובר).
- * תפקידו לאמת את זהות המשתמש ולנתב אותו למסך המתאים לפי התפקיד שלו.
- */
+//מסך ההתחברות
 public class LoginActivity extends AppCompatActivity {
 
-    // משתנה לגישה נוחה לרכיבי העיצוב (ViewBinding).
-    // במקום להשתמש ב-findViewById כל פעם, אנחנו ניגשים דרך ה-binding.
+    // משתנה לגישה לרכיבי העיצוב
     private ActivityLoginBinding binding;
 
-    // רכיב האימות של Firebase. אחראי על בדיקת אימייל וסיסמה.
+    // רכיב האימות של פיירבייס אחראי על בדיקת אימייל וסיסמה
     private FirebaseAuth mAuth;
 
-    // רכיב מסד הנתונים של Firebase. אחראי על שליפת נתוני המשתמש (כמו תפקיד).
+    // רכיב מסד הנתונים של פיירבייס אחראי על שליפת נתוני המשתמש
     private FirebaseFirestore db;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // 1. "ניפוח" (Inflating) קובץ ה-XML והפיכתו לאובייקטים של Java.
+        //  ניפוח קובץ ה-XML והפיכתו לאובייקטים של Java
         binding = ActivityLoginBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        // 2. אתחול המופעים של Firebase (Singleton).
-        // מקבלים את המופע הקיים של האפליקציה כדי שנוכל להשתמש בו.
+        //  אתחול המופעים של פיירבייס
+        // מקבלים את המופע הקיים של האפליקציה כדי שנוכל להשתמש בו
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
 
-        // 3. הגדרת מאזין (Listener) לכפתור ההתחברות.
-        // ברגע שהמשתמש לוחץ על "התחבר", הפונקציה loginUser תופעל.
+        //  הגדרת מאזין לכפתור ההתחברות
+        // ברגע שהמשתמש לוחץ על התחבר הפונקציה loginUser תופעל
         binding.btnLogin.setOnClickListener(v -> loginUser());
 
-        // 4. הגדרת מאזין לטקסט "אין לך חשבון? הירשם כאן".
-        // מעביר את המשתמש למסך ההרשמה.
+        //  הגדרת מאזין לטקסט הרשמה
+        // מעביר את המשתמש למסך ההרשמה
         binding.tvGoToRegister.setOnClickListener(v -> {
             Intent intent = new Intent(LoginActivity.this, RegisterActivity.class);
             startActivity(intent);
         });
     }
 
-    /**
-     * פונקציה המבצעת את תהליך ההתחברות הלוגי.
-     */
+    //תהליך ההתחברות
     private void loginUser() {
-        // שלב א': שליפת המידע משדות הטקסט.
-        // הפונקציה trim() מוחקת רווחים מיותרים בהתחלה ובסוף (למשל אם המקלדת הוסיפה רווח אוטומטי).
+
         String email = binding.etLoginEmail.getText().toString().trim();
         String password = binding.etLoginPassword.getText().toString().trim();
-
-        // שלב ב': בדיקת תקינות קלט (Validation).
-        // אם אחד השדות ריק, אין טעם לפנות לשרת.
         if (email.isEmpty() || password.isEmpty()) {
             Toast.makeText(this, "נא להזין אימייל וסיסמה", Toast.LENGTH_SHORT).show();
-            return; // עצירת הפונקציה כאן
+            return;
         }
 
-        // שלב ג': ביצוע ההתחברות מול Firebase Authentication.
-        // זוהי פעולה אסינכרונית (לוקחת זמן), לכן יש לה callbacks של הצלחה וכישלון.
+        //  ביצוע ההתחברות מול פיירבייס
         mAuth.signInWithEmailAndPassword(email, password)
                 .addOnSuccessListener(authResult -> {
-                    // האימות הצליח! הסיסמה נכונה והמשתמש קיים.
-                    // כעת עלינו לברר: האם זה מנהל או עובד?
-                    // המידע הזה לא נמצא ב-Auth, אלא במסד הנתונים (Firestore).
-                    // אנו שולחים את ה-UID (המזהה הייחודי) לפונקציית בדיקת התפקיד.
+                    // שליחת מזהה משתמש לבדיקת תפקיד
                     checkUserRole(authResult.getUser().getUid());
                 })
                 .addOnFailureListener(e -> {
-                    // האימות נכשל (למשל: סיסמה שגויה, משתמש לא קיים, אין אינטרנט).
+                    // האימות נכשל
                     Toast.makeText(LoginActivity.this, "שגיאת התחברות: " + e.getMessage(), Toast.LENGTH_LONG).show();
                 });
     }
 
-    /**
-     * פונקציה שבודקת במסד הנתונים מהו התפקיד (Role) של המשתמש.
-     * @param uid - המזהה הייחודי שקיבלנו מה-Authentication.
-     */
+    //בדיקת תפקיד המשתמש
     private void checkUserRole(String uid) {
         // פנייה לאוסף "users" ושליפת המסמך שמזהה שלו הוא ה-UID.
         db.collection("users").document(uid).get()
                 .addOnSuccessListener(documentSnapshot -> {
-                    // בדיקה האם המסמך באמת קיים ב-Firestore.
+                    // בדיקה האם המסמך באמת קיים
                     if (documentSnapshot.exists()) {
 
-                        // המרת המסמך (JSON) לאובייקט Java מסוג User.
+                        // המרת המסמך (JSON) לאובייקט Java מסוג User
                         User user = documentSnapshot.toObject(User.class);
 
                         if (user != null) {
-                            // אם ההמרה הצליחה, אנו בודקים את התפקיד ומנווטים בהתאם.
+                            // אם ההמרה הצליחה, אנו בודקים את התפקיד ומנווטים בהתאם
                             navigateBasedOnRole(user.getRole());
                         }
                     } else {
-                        // מקרה נדיר: המשתמש קיים ב-Auth (אימייל וסיסמה) אבל המידע שלו נמחק מהדאטה בייס.
+                        // מקרה קצה -  המשתמש קיים ב-Auth (אימייל וסיסמה) אבל המידע שלו נמחק מהדאטה בייס
                         Toast.makeText(this, "משתמש לא נמצא במסד הנתונים", Toast.LENGTH_SHORT).show();
                     }
                 })
                 .addOnFailureListener(e -> {
-                    // שגיאת רשת או הרשאות בגישה ל-Firestore.
+                    // שגיאת רשת או הרשאות בגישה לפיירבייס
                     Toast.makeText(this, "שגיאה בשליפת נתונים: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
     }
 
-    /**
-     * פונקציית הניווט הסופית. פותחת את המסך המתאים לפי התפקיד.
-     * @param role - מחרוזת התפקיד ("manager" או "employee").
-     */
+    //ניווט למסך האלוונטי לפי התפקיד
     private void navigateBasedOnRole(String role) {
         Intent intent;
 
         // שימוש בקבוע סטטי (ROLE_MANAGER) כדי למנוע שגיאות כתיב.
         if (User.ROLE_MANAGER.equals(role)) {
-            // אם המשתמש הוא מנהל -> פתח את מסך המנהל
+            // אם המשתמש הוא מנהל: פתח את מסך המנהל
             intent = new Intent(LoginActivity.this, ManagerActivity.class);
         } else {
-            // אחרת (עובד) -> פתח את מסך העובד
+            // אחרת (עובד): פתח את מסך העובד
             intent = new Intent(LoginActivity.this, EmployeeActivity.class);
         }
 
-        // הגדרת דגלים (Flags) ל-Intent:
-        // 1. FLAG_ACTIVITY_NEW_TASK - פותח משימה חדשה.
-        // 2. FLAG_ACTIVITY_CLEAR_TASK - מנקה את כל ההיסטוריה של המסכים הקודמים.
-        // המשמעות: כשהמשתמש ייכנס למסך הראשי, לחיצה על "חזור" (Back) במכשיר
-        // לא תחזיר אותו למסך ההתחברות, אלא תצא מהאפליקציה. זה קריטי לאבטחה ולחוויית משתמש.
+
+        // כשהמשתמש ייכנס למסך הראשי, לחיצה על "חזור" (Back) במכשיר תצא מהאפליקציה
+
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
 
         startActivity(intent);
-        finish(); // סגירת ה-Activity הנוכחי (Login) כדי לשחרר זיכרון.
+        finish(); // סגירת ה-Activity הנוכחי (Login) כדי לשחרר זיכרון
     }
 }

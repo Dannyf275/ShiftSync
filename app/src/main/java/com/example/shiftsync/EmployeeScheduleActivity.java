@@ -19,17 +19,14 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * מסך לוח המשמרות של העובד.
- * כאן העובד יכול לראות משמרות פנויות, להירשם אליהן, ולצפות בשיבוצים שלו.
- */
+//לוח משמרות עובד
 public class EmployeeScheduleActivity extends AppCompatActivity {
 
     private ActivityEmployeeScheduleBinding binding;
     private FirebaseFirestore db;
     private FirebaseAuth mAuth;
 
-    // שימוש באדפטר הייעודי לעובד (ולא זה של המנהל)
+    // שימוש באדפטר הייעודי לעובד
     private EmployeeShiftsAdapter adapter;
 
     private List<Shift> shiftsList;
@@ -43,7 +40,7 @@ public class EmployeeScheduleActivity extends AppCompatActivity {
         binding = ActivityEmployeeScheduleBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        // אתחול Firebase
+        // אתחול פיירבייס
         db = FirebaseFirestore.getInstance();
         mAuth = FirebaseAuth.getInstance();
 
@@ -55,7 +52,7 @@ public class EmployeeScheduleActivity extends AppCompatActivity {
         shiftsList = new ArrayList<>();
         selectedDate = Calendar.getInstance();
 
-        // טעינת שם העובד מהדאטה-בייס (נחוץ לשמירה בתוך המשמרת בעת הרשמה)
+        // טעינת שם העובד מבסיס הנתונים
         loadUserName();
 
         // הגדרת הרשימה והאדפטר
@@ -71,9 +68,7 @@ public class EmployeeScheduleActivity extends AppCompatActivity {
         binding.btnBack.setOnClickListener(v -> finish());
     }
 
-    /**
-     * טעינת שם המשתמש הנוכחי מתוך אוסף "users".
-     */
+    //טעינת משתמש נוכחי
     private void loadUserName() {
         if (currentUserId == null) return;
 
@@ -84,23 +79,21 @@ public class EmployeeScheduleActivity extends AppCompatActivity {
         });
     }
 
-    /**
-     * הגדרת ה-RecyclerView וחיבור האדפטר.
-     */
+    //הגדרת recyclerview ואדפטר
     private void setupRecyclerView() {
         binding.rvShifts.setLayoutManager(new LinearLayoutManager(this));
 
-        // יצירת האדפטר עם הממשק (Interface) לטיפול בלחיצות
+        // יצירת האדפטר עם הממשק לטיפול בלחיצות
         adapter = new EmployeeShiftsAdapter(shiftsList, currentUserId, new EmployeeShiftsAdapter.OnShiftActionListener() {
             @Override
             public void onSignUp(Shift shift) {
-                // לוגיקה להרשמה למשמרת
+                // הרשמה למשמרת
                 signUpForShift(shift);
             }
 
             @Override
             public void onCancel(Shift shift) {
-                // לוגיקה לביטול הרשמה
+                // ביטול הרשמה
                 cancelSignUp(shift);
             }
         });
@@ -108,9 +101,7 @@ public class EmployeeScheduleActivity extends AppCompatActivity {
         binding.rvShifts.setAdapter(adapter);
     }
 
-    /**
-     * הגדרת המאזין ללוח השנה.
-     */
+    //מאזין ללוח השנה
     private void setupCalendar() {
         binding.calendarView.setOnDateChangeListener((view, year, month, dayOfMonth) -> {
             // עדכון התאריך הנבחר
@@ -120,9 +111,7 @@ public class EmployeeScheduleActivity extends AppCompatActivity {
         });
     }
 
-    /**
-     * טעינת משמרות לפי תאריך (Real-time).
-     */
+    //טעינת משמרות לפי תאריך
     private void loadShiftsForDate(Calendar date) {
         // חישוב תחילת היום (00:00) וסוף היום (23:59)
         Calendar startOfDay = (Calendar) date.clone();
@@ -135,7 +124,7 @@ public class EmployeeScheduleActivity extends AppCompatActivity {
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
         binding.tvDateTitle.setText("משמרות לתאריך: " + sdf.format(date.getTime()));
 
-        // שאילתה ל-Firestore: תביא משמרות שמתחילות בטווח הזה
+        // יבוא משמרות בטווח המבוקש מהפיירבייס
         db.collection("shifts")
                 .whereGreaterThanOrEqualTo("startTime", startOfDay.getTimeInMillis())
                 .whereLessThanOrEqualTo("startTime", endOfDay.getTimeInMillis())
@@ -154,9 +143,9 @@ public class EmployeeScheduleActivity extends AppCompatActivity {
                 });
     }
 
-    /**
-     * ביצוע הרשמה למשמרת (הוספה לרשימת הממתינים).
-     */
+
+     //ביצוע הרשמה למשמרת (הוספה לרשימת הממתינים)
+
     private void signUpForShift(Shift shift) {
         db.collection("shifts").document(shift.getShiftId())
                 .update(
@@ -167,9 +156,9 @@ public class EmployeeScheduleActivity extends AppCompatActivity {
                 .addOnFailureListener(e -> Toast.makeText(this, "שגיאה בשליחת בקשה", Toast.LENGTH_SHORT).show());
     }
 
-    /**
-     * ביטול הרשמה (הסרה מרשימת הממתינים וגם מהמאושרים ליתר ביטחון).
-     */
+
+     //ביטול הרשמה
+
     private void cancelSignUp(Shift shift) {
         db.collection("shifts").document(shift.getShiftId())
                 .update(

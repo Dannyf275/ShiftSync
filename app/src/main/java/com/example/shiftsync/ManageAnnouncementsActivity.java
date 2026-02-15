@@ -22,11 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * מסך ניהול הודעות (Manage Announcements).
- * מיועד למנהל בלבד.
- * מאפשר צפייה ברשימת ההודעות, הוספת הודעה חדשה לכלל העובדים, ומחיקת הודעות קיימות.
- */
+//מסך ניהול הודעות
 public class ManageAnnouncementsActivity extends AppCompatActivity {
 
     // אובייקט לחיבור למסד הנתונים
@@ -51,7 +47,7 @@ public class ManageAnnouncementsActivity extends AppCompatActivity {
         // אתחול המסד נתונים
         db = FirebaseFirestore.getInstance();
 
-        // קריאה לפונקציה שטוענת את שם המנהל הנוכחי (כדי שיופיע כ"מאת: ישראל ישראלי")
+        // קריאה לפונקציה שטוענת את שם המנהל הנוכחי
         loadManagerName();
 
         // קישור לרכיבים ב-XML
@@ -78,10 +74,7 @@ public class ManageAnnouncementsActivity extends AppCompatActivity {
         loadAnnouncements();
     }
 
-    /**
-     * פונקציה לטעינת שם המנהל המחובר כרגע.
-     * אנו צריכים את השם כדי לשמור אותו בתוך ההודעה החדשה שנוצרת.
-     */
+    //טעינת שם המנהל המחובר
     private void loadManagerName() {
         // בדיקה שאכן יש משתמש מחובר
         if (FirebaseAuth.getInstance().getCurrentUser() == null) return;
@@ -96,11 +89,7 @@ public class ManageAnnouncementsActivity extends AppCompatActivity {
         });
     }
 
-    /**
-     * טעינת רשימת ההודעות מ-Firestore.
-     * אנו משתמשים ב-addSnapshotListener כדי לקבל עדכונים בזמן אמת.
-     * אם מנהל אחר יוסיף הודעה, הרשימה תתעדכן מיד גם אצלנו.
-     */
+    //טעינת רשימת ההודעות מהפיירבייס
     private void loadAnnouncements() {
         db.collection("announcements")
                 .orderBy("timestamp", Query.Direction.DESCENDING) // מיון: מהחדש לישן
@@ -124,9 +113,7 @@ public class ManageAnnouncementsActivity extends AppCompatActivity {
                 });
     }
 
-    /**
-     * הצגת דיאלוג (חלון קופץ) להוספת הודעה חדשה.
-     */
+    //חלון הוספת הודעה חדשה
     private void showAddDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
 
@@ -167,11 +154,7 @@ public class ManageAnnouncementsActivity extends AppCompatActivity {
         builder.show(); // הצגת הדיאלוג למסך
     }
 
-    /**
-     * מחיקת הודעה.
-     * מציג דיאלוג אישור לפני המחיקה כדי למנוע טעויות.
-     * @param item - אובייקט ההודעה שאותו רוצים למחוק.
-     */
+    //מחיקת הודעה
     private void deleteAnnouncement(Announcement item) {
         new AlertDialog.Builder(this)
                 .setTitle("מחיקת הודעה")

@@ -11,29 +11,21 @@ import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
-
-// ייבוא הספריות החיוניות (וודא שהן קיימות ב-build.gradle)
 import androidx.annotation.NonNull;
 import androidx.cardview.widget.CardView;
 import androidx.recyclerview.widget.RecyclerView;
-
 import com.example.shiftsync.models.Shift;
-
 import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * אדפטר לרשימת המשמרות בתצוגת עובד.
- * מציג סטטוסים שונים (פנוי/ממתין/משובץ) ומאפשר הוספה ליומן גוגל.
- */
+//אדפטר לרשימת משמרות בתצוגת עובד
 public class EmployeeShiftsAdapter extends RecyclerView.Adapter<EmployeeShiftsAdapter.ViewHolder> {
 
     private List<Shift> shiftsList;
     private String currentUserId;
     private OnShiftActionListener listener;
 
-    // ממשק להעברת אירועי לחיצה ל-Activity
     public interface OnShiftActionListener {
         void onSignUp(Shift shift);
         void onCancel(Shift shift);
@@ -48,7 +40,7 @@ public class EmployeeShiftsAdapter extends RecyclerView.Adapter<EmployeeShiftsAd
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        // טעינת קובץ העיצוב (XML) של שורת משמרת לעובד
+        // טעינת קובץ העיצוב  של שורת משמרת לעובד
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_employee_shift, parent, false);
         return new ViewHolder(view);
     }
@@ -57,16 +49,16 @@ public class EmployeeShiftsAdapter extends RecyclerView.Adapter<EmployeeShiftsAd
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Shift shift = shiftsList.get(position);
 
-        // 1. הצגת זמני המשמרת
+        //  הצגת זמני המשמרת
         SimpleDateFormat sdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
         holder.tvTime.setText(sdf.format(shift.getStartTime()) + " - " + sdf.format(shift.getEndTime()));
 
-        // 2. חישוב והצגת תפוסה
+        //  חישוב והצגת תפוסה
         int currentRegistered = (shift.getAssignedUserIds() != null) ? shift.getAssignedUserIds().size() : 0;
         int maxRequired = shift.getRequiredWorkers();
         holder.tvStatus.setText("תפוסה: " + currentRegistered + "/" + maxRequired);
 
-        // 3. בדיקת הסטטוס של המשתמש הנוכחי מול המשמרת
+        //  בדיקת הסטטוס של המשתמש הנוכחי מול המשמרת
         boolean amISignedUp = shift.getAssignedUserIds() != null && shift.getAssignedUserIds().contains(currentUserId);
         boolean amIPending = shift.getPendingUserIds() != null && shift.getPendingUserIds().contains(currentUserId);
         boolean isFull = currentRegistered >= maxRequired;
@@ -75,21 +67,21 @@ public class EmployeeShiftsAdapter extends RecyclerView.Adapter<EmployeeShiftsAd
         // (הכפתור יופיע רק אם המשתמש משובץ סופית)
         holder.btnCalendar.setVisibility(View.GONE);
 
-        // 4. לוגיקה לשינוי המראה לפי הסטטוס
+        //  לוגיקה לשינוי המראה לפי הסטטוס
         if (amISignedUp) {
-            // === מקרה 1: המשתמש משובץ (מאושר) ===
+            //   המשתמש משובץ (מאושר)
             holder.cardView.setCardBackgroundColor(Color.parseColor("#E8F5E9")); // ירוק בהיר
             holder.btnAction.setText("משובץ ✅");
             holder.btnAction.setBackgroundColor(Color.GRAY);
             holder.btnAction.setEnabled(false); // אין צורך בפעולה נוספת על הכפתור הראשי
 
-            // הצגת כפתור היומן!
+            // הצגת כפתור היומן
             holder.btnCalendar.setVisibility(View.VISIBLE);
             // לחיצה עליו תוסיף את האירוע ליומן
             holder.btnCalendar.setOnClickListener(v -> addToGoogleCalendar(holder.itemView.getContext(), shift));
 
         } else if (amIPending) {
-            // === מקרה 2: המשתמש ממתין לאישור ===
+            //  המשתמש ממתין לאישור
             holder.cardView.setCardBackgroundColor(Color.parseColor("#FFF3E0")); // כתום בהיר
             holder.btnAction.setText("ממתין... (בטל)");
             holder.btnAction.setBackgroundColor(Color.parseColor("#FF9800")); // כתום
@@ -97,14 +89,14 @@ public class EmployeeShiftsAdapter extends RecyclerView.Adapter<EmployeeShiftsAd
             holder.btnAction.setOnClickListener(v -> listener.onCancel(shift));
 
         } else if (isFull) {
-            // === מקרה 3: המשמרת מלאה ואין מקום ===
+            //  המשמרת מלאה ואין מקום
             holder.cardView.setCardBackgroundColor(Color.parseColor("#EEEEEE")); // אפור
             holder.btnAction.setText("מלא");
             holder.btnAction.setBackgroundColor(Color.GRAY);
             holder.btnAction.setEnabled(false);
 
         } else {
-            // === מקרה 4: המשמרת פנויה להרשמה ===
+            //  המשמרת פנויה להרשמה
             holder.cardView.setCardBackgroundColor(Color.WHITE);
             holder.btnAction.setText("הירשם");
             holder.btnAction.setBackgroundColor(Color.parseColor("#6200EE")); // סגול
@@ -113,9 +105,9 @@ public class EmployeeShiftsAdapter extends RecyclerView.Adapter<EmployeeShiftsAd
         }
     }
 
-    /**
-     * פונקציה להוספת המשמרת ליומן גוגל (או כל יומן אחר במכשיר).
-     */
+
+     // פונקציה להוספת המשמרת ליומן גוגל
+
     private void addToGoogleCalendar(Context context, Shift shift) {
         try {
             Intent intent = new Intent(Intent.ACTION_INSERT);
@@ -140,9 +132,7 @@ public class EmployeeShiftsAdapter extends RecyclerView.Adapter<EmployeeShiftsAd
         return shiftsList == null ? 0 : shiftsList.size();
     }
 
-    /**
-     * מחלקת ה-ViewHolder: מחזיקה את הפניות לרכיבים הגרפיים.
-     */
+    //viewholder
     public static class ViewHolder extends RecyclerView.ViewHolder {
         TextView tvTime, tvStatus;
         Button btnAction;
@@ -155,8 +145,6 @@ public class EmployeeShiftsAdapter extends RecyclerView.Adapter<EmployeeShiftsAd
             tvStatus = itemView.findViewById(R.id.tvShiftStatus);
             btnAction = itemView.findViewById(R.id.btnAction);
             cardView = itemView.findViewById(R.id.cardShift);
-
-            // חשוב: וודא שה-ID הזה קיים ב-item_employee_shift.xml
             btnCalendar = itemView.findViewById(R.id.btnAddToCalendar);
         }
     }

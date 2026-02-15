@@ -13,19 +13,16 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
 
-/**
- * מסך הפתיחה (Splash Screen).
- * מציג את הלוגו למשך מספר שניות, בודק את סטטוס ההתחברות, ומעביר למסך הבא.
- */
+//מסך הפתיחה - טעינה של 3 שניות, בדיקת האם משתמש מחובר ומעבר למסך המתאים
 public class MainActivity extends AppCompatActivity {
 
-    // קבוע המגדיר את זמן ההשהייה במילי-שניות (3000 = 3 שניות).
-    // בזמן הזה המשתמש יראה את הלוגו (שהוגדר ב-activity_main.xml).
+    // קבוע המגדיר את זמן ההשהייה
+    // בזמן הזה המשתמש יראה את הלוגו
     private static final int SPLASH_DELAY = 3000;
 
-    // אובייקטים לחיבור ל-Firebase
+    // אובייקטים לחיבור לפיירבייס
     private FirebaseAuth mAuth; // לבדיקת המשתמש המחובר
-    private FirebaseFirestore db; // לבדיקת התפקיד (Role)
+    private FirebaseFirestore db; // לבדיקת התפקיד
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,50 +30,36 @@ public class MainActivity extends AppCompatActivity {
         // טעינת עיצוב המסך (הלוגו)
         setContentView(R.layout.activity_main);
 
-        // 1. אתחול מופעי Firebase
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
 
-        // 2. הפעלת מנגנון ההשהייה (Timer).
-        // אנחנו משתמשים ב-Handler המקושר ל-MainLooper כדי לוודא
-        // שהקוד ירוץ על ה-UI Thread אחרי שהזמן יעבור.
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
-
-            // הקוד בתוך הבלוק הזה ירוץ רק אחרי 3 שניות (SPLASH_DELAY).
-            // כעת אנחנו בודקים לאן להעביר את המשתמש.
             checkUserStatus();
 
         }, SPLASH_DELAY);
     }
 
-    /**
-     * פונקציה הבודקת את סטטוס המשתמש (Auto Login).
-     */
+
     private void checkUserStatus() {
-        // בדיקה האם יש משתמש שמחובר כרגע (שמר session מפעם קודמת)
+        // בדיקה האם יש משתמש שמחובר כרגע
         FirebaseUser currentUser = mAuth.getCurrentUser();
 
         if (currentUser != null) {
-            // --- משתמש מחובר ---
-            // אנחנו יודעים שהוא מחובר, אבל לא יודעים אם הוא מנהל או עובד.
-            // לכן צריך לבדוק את התפקיד שלו ב-Firestore.
+
+            // בדיקת תפקיד המשתמש המחובר
             checkRoleAndNavigate(currentUser.getUid());
         } else {
-            // --- לא מחובר ---
-            // המשתמש צריך להזין שם וסיסמה -> מעבירים למסך התחברות.
+            // אם לא מחובר ניווט למסך התחברות
             navigateToLogin();
         }
     }
 
-    /**
-     * פונקציה שבודקת ב-Firestore מה התפקיד של המשתמש ומנווטת בהתאם.
-     * @param uid - המזהה הייחודי של המשתמש.
-     */
+    //בדיקת תפקיד וניווט
     private void checkRoleAndNavigate(String uid) {
-        // שליפת המסמך של המשתמש מאוסף "users"
+        // שליפת המסמך של המשתמש מאוסף המשתמשים
         db.collection("users").document(uid).get()
                 .addOnSuccessListener(documentSnapshot -> {
-                    // בדיקה האם המסמך קיים (למניעת קריסות אם המשתמש נמחק מהדאטה בייס)
+                    // בדיקה האם המסמך קיים
                     if (documentSnapshot.exists()) {
 
                         // המרה לאובייקט User
@@ -111,9 +94,7 @@ public class MainActivity extends AppCompatActivity {
                 });
     }
 
-    /**
-     * פונקציית עזר למעבר למסך ההתחברות.
-     */
+    //מעבר למסך התחברות
     private void navigateToLogin() {
         Intent intent = new Intent(MainActivity.this, LoginActivity.class);
         // ניקוי ההיסטוריה: מונע חזרה למסך הפתיחה בלחיצה על Back
@@ -122,10 +103,7 @@ public class MainActivity extends AppCompatActivity {
         finish(); // סגירת ה-Splash Screen
     }
 
-    /**
-     * פונקציית עזר גנרית למעבר לכל Activity אחר (מנהל או עובד).
-     * @param targetActivity - המחלקה של המסך שאליו רוצים לעבור.
-     */
+    //מעבר למסך עובד/מנהל
     private void navigateToActivity(Class<?> targetActivity) {
         Intent intent = new Intent(MainActivity.this, targetActivity);
         // ניקוי ההיסטוריה: מונע חזרה למסך הפתיחה בלחיצה על Back
